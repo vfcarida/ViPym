@@ -8,16 +8,8 @@ VIPYM_LEAST_PRIVILEGE_POLICY = {
         {
             "Sid": "ViPymS3ArtifactAccess",
             "Effect": "Allow",
-            "Action": [
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:ListBucket",
-                "s3:DeleteObject"
-            ],
-            "Resource": [
-                "arn:aws:s3:::vipym-*",
-                "arn:aws:s3:::vipym-*/*"
-            ]
+            "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:DeleteObject"],
+            "Resource": ["arn:aws:s3:::vipym-*", "arn:aws:s3:::vipym-*/*"],
         },
         {
             "Sid": "ViPymCloudWatchMetrics",
@@ -26,20 +18,17 @@ VIPYM_LEAST_PRIVILEGE_POLICY = {
                 "cloudwatch:PutMetricData",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "logs:PutLogEvents",
             ],
-            "Resource": "*"
+            "Resource": "*",
         },
         {
             "Sid": "ViPymEC2SelfTermination",
             "Effect": "Allow",
-            "Action": [
-                "ec2:TerminateInstances",
-                "ec2:DescribeInstances"
-            ],
-            "Resource": "*"
-        }
-    ]
+            "Action": ["ec2:TerminateInstances", "ec2:DescribeInstances"],
+            "Resource": "*",
+        },
+    ],
 }
 
 

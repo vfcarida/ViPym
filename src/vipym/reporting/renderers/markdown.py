@@ -1,6 +1,7 @@
 """Markdown experiment report renderer."""
 
-from typing import Any, Dict, List
+from typing import Any
+
 from vipym.analysis.pareto import ParetoPoint
 
 
@@ -11,8 +12,8 @@ class MarkdownReportRenderer:
     def render(
         experiment_id: str,
         baseline: ParetoPoint,
-        results: List[ParetoPoint],
-        manifest_meta: Dict[str, Any],
+        results: list[ParetoPoint],
+        manifest_meta: dict[str, Any],
     ) -> str:
         lines = [
             f"# ViPym Experiment Report: `{experiment_id}`",
@@ -35,20 +36,22 @@ class MarkdownReportRenderer:
 
         # Add baseline row
         lines.append(
-            f"| **Baseline** | Native | **{baseline.quality_score*100:.1f}%** | {baseline.latency_p50_ms:.1f} | {baseline.peak_vram_gb:.1f} | ${baseline.cost_usd:.2f} | - |"
+            f"| **Baseline** | Native | **{baseline.quality_score * 100:.1f}%** | {baseline.latency_p50_ms:.1f} | {baseline.peak_vram_gb:.1f} | ${baseline.cost_usd:.2f} | - |"
         )
 
         for pt in results:
             pareto_mark = "🌟 **Yes**" if pt.is_pareto_optimal else "No"
             lines.append(
-                f"| `{pt.configuration_name}` | Auto | {pt.quality_score*100:.1f}% | {pt.latency_p50_ms:.1f} | {pt.peak_vram_gb:.1f} | ${pt.cost_usd:.2f} | {pareto_mark} |"
+                f"| `{pt.configuration_name}` | Auto | {pt.quality_score * 100:.1f}% | {pt.latency_p50_ms:.1f} | {pt.peak_vram_gb:.1f} | ${pt.cost_usd:.2f} | {pareto_mark} |"
             )
 
-        lines.extend([
-            "",
-            "## 3. Key Findings & Recommendation",
-            "",
-            "Configurations marked with 🌟 represent non-dominated Pareto efficient trade-offs across capability, memory, and operational cost.",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 3. Key Findings & Recommendation",
+                "",
+                "Configurations marked with 🌟 represent non-dominated Pareto efficient trade-offs across capability, memory, and operational cost.",
+            ]
+        )
 
         return "\n".join(lines)

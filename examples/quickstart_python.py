@@ -1,6 +1,5 @@
 """ViPym Python API Quickstart Example."""
 
-from pathlib import Path
 from vipym.config.schema import (
     CostAssumptionConfig,
     EvaluationConfig,
@@ -34,7 +33,9 @@ def main():
     print(f"Experiment {summary.experiment_id} finished in state {summary.final_state}")
     print(f"Baseline Score: {summary.baseline_point.quality_score * 100:.1f}%")
     for pt in summary.compressed_points:
-        print(f"Config: {pt.configuration_name} | Score: {pt.quality_score * 100:.1f}% | Pareto: {pt.is_pareto_optimal}")
+        print(
+            f"Config: {pt.configuration_name} | Score: {pt.quality_score * 100:.1f}% | Pareto: {pt.is_pareto_optimal}"
+        )
 
 
 if __name__ == "__main__":

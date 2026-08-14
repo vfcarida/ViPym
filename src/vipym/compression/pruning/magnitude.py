@@ -1,15 +1,16 @@
 """Pruning & Sparsity Adapters (Magnitude, 2:4 Semi-Structured, Wanda)."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -45,13 +46,15 @@ class MagnitudePruningMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./pruned_model")
         out.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Applying Magnitude Pruning (ratio={self.sparsity_ratio}, structured={self.structured})")
+        logger.info(
+            f"Applying Magnitude Pruning (ratio={self.sparsity_ratio}, structured={self.structured})"
+        )
 
         # Zero out bottom magnitude weights in linear layers
         with torch.no_grad():
@@ -108,8 +111,8 @@ class NMSparsityMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./nm_sparse_model")
@@ -161,8 +164,8 @@ class WandaPruningMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./wanda_model")

@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import List, Optional
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -27,10 +27,14 @@ logger = get_logger(__name__)
 
 @app.callback(invoke_without_command=True)
 def version_callback(
-    version: Optional[bool] = typer.Option(None, "--version", "-v", help="Show ViPym version and exit"),
+    version: bool | None = typer.Option(
+        None, "--version", "-v", help="Show ViPym version and exit"
+    ),
 ) -> None:
     if version:
-        console.print(f"[bold cyan]ViPym[/bold cyan] version [bold green]{__version__}[/bold green]")
+        console.print(
+            f"[bold cyan]ViPym[/bold cyan] version [bold green]{__version__}[/bold green]"
+        )
         raise typer.Exit()
 
 
@@ -42,32 +46,44 @@ def doctor_cmd() -> None:
 
 @app.command("validate")
 def validate_config(
-    config_path: Path = typer.Option(..., "--config", "-c", help="Path to experiment YAML configuration"),
+    config_path: Path = typer.Option(
+        ..., "--config", "-c", help="Path to experiment YAML configuration"
+    ),
 ) -> None:
     """Validate an experiment YAML configuration file against Pydantic schema."""
     try:
         cfg = ViPymExperimentConfig.from_yaml(config_path)
-        console.print(f"[bold green]✓ Configuration is valid:[/bold green] [cyan]{cfg.experiment_id}[/cyan]")
+        console.print(
+            f"[bold green]✓ Configuration is valid:[/bold green] [cyan]{cfg.experiment_id}[/cyan]"
+        )
         console.print(f"Model: [magenta]{cfg.model.id}[/magenta]")
         console.print(f"Stages: [yellow]{len(cfg.compression_pipeline)}[/yellow]")
         console.print(f"Suites: [blue]{cfg.evaluation.suites}[/blue]")
     except Exception as e:
         console.print(f"[bold red]✗ Configuration Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command("run")
 def run_experiment(
-    config_path: Path = typer.Option(..., "--config", "-c", help="Path to experiment YAML configuration"),
-    artifacts_dir: Path = typer.Option(Path("./artifacts"), "--artifacts-dir", "-a", help="Directory to save artifacts"),
-    no_resume: bool = typer.Option(False, "--no-resume", help="Force restart from scratch ignoring checkpoints"),
+    config_path: Path = typer.Option(
+        ..., "--config", "-c", help="Path to experiment YAML configuration"
+    ),
+    artifacts_dir: Path = typer.Option(
+        Path("./artifacts"), "--artifacts-dir", "-a", help="Directory to save artifacts"
+    ),
+    no_resume: bool = typer.Option(
+        False, "--no-resume", help="Force restart from scratch ignoring checkpoints"
+    ),
 ) -> None:
     """Run an end-to-end compression, benchmark evaluation, and reporting experiment."""
     console.print(f"[bold green]Starting ViPym Experiment:[/bold green] {config_path}")
     cfg = ViPymExperimentConfig.from_yaml(config_path)
     runner = ResumableExperimentRunner(config=cfg, artifacts_dir=artifacts_dir)
     res = runner.run(resume=not no_resume)
-    console.print(f"\n[bold green]✓ Experiment [{res.experiment_id}] Completed Successfully![/bold green]")
+    console.print(
+        f"\n[bold green]✓ Experiment [{res.experiment_id}] Completed Successfully![/bold green]"
+    )
     console.print(f"Manifest ID: [cyan]{res.manifest_id}[/cyan]")
     console.print(f"Total Duration: [yellow]{res.total_duration_sec:.2f}s[/yellow]")
     console.print(f"Total Est. Cost: [yellow]${res.total_cost_usd:.4f}[/yellow]")
@@ -78,19 +94,23 @@ def run_experiment(
 def baseline_cmd(
     model_id: str = typer.Option(..., "--model", "-m", help="Target model ID"),
     suite: str = typer.Option("humaneval", "--suite", "-s", help="Evaluation suite"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit number of tasks"),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of tasks"),
 ) -> None:
     """Establish and evaluate an uncompressed baseline."""
     from vipym.evaluation.runner import BenchmarkRunner
     from vipym.inference.registry import InferenceRegistry
 
-    console.print(f"Establishing baseline for [cyan]{model_id}[/cyan] on suite [magenta]{suite}[/magenta]")
+    console.print(
+        f"Establishing baseline for [cyan]{model_id}[/cyan] on suite [magenta]{suite}[/magenta]"
+    )
     backend = InferenceRegistry.get("vllm")
     backend.start(model_id)
     runner = BenchmarkRunner()
     res = runner.run_suite(suite, backend, task_limit=limit)
     backend.stop()
-    console.print(f"Baseline Score for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1*100:.1f}%[/bold green]")
+    console.print(
+        f"Baseline Score for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1 * 100:.1f}%[/bold green]"
+    )
 
 
 @app.command("compress")
@@ -105,30 +125,38 @@ def compress_cmd(
     except Exception:
         adapter = ModelRegistry.get("hf")
     compressor = CompressionRegistry.get(method)
-    console.print(f"Compressing [cyan]{model_id}[/cyan] using [magenta]{method}[/magenta] -> {output_dir}")
+    console.print(
+        f"Compressing [cyan]{model_id}[/cyan] using [magenta]{method}[/magenta] -> {output_dir}"
+    )
     model = adapter.load_for_compression(model_id)
     tokenizer = adapter.get_tokenizer(model_id)
     art = compressor.compress(model, tokenizer, output_dir=output_dir)
-    console.print(f"[bold green]✓ Compression completed:[/bold green] format={art.format}, size={art.compressed_size_bytes} bytes")
+    console.print(
+        f"[bold green]✓ Compression completed:[/bold green] format={art.format}, size={art.compressed_size_bytes} bytes"
+    )
 
 
 @app.command("evaluate")
 def evaluate_cmd(
     model_path_or_id: str = typer.Option(..., "--model", "-m", help="Model path or HuggingFace ID"),
     suite: str = typer.Option("humaneval", "--suite", "-s", help="Evaluation suite name"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Cap number of tasks"),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Cap number of tasks"),
 ) -> None:
     """Evaluate a model on a benchmark suite without compression."""
     from vipym.evaluation.runner import BenchmarkRunner
     from vipym.inference.registry import InferenceRegistry
 
-    console.print(f"Evaluating model [cyan]{model_path_or_id}[/cyan] on suite [magenta]{suite}[/magenta]")
+    console.print(
+        f"Evaluating model [cyan]{model_path_or_id}[/cyan] on suite [magenta]{suite}[/magenta]"
+    )
     backend = InferenceRegistry.get("vllm")
     backend.start(model_path_or_id)
     runner = BenchmarkRunner()
     res = runner.run_suite(suite, backend, task_limit=limit)
     backend.stop()
-    console.print(f"Results for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1*100:.1f}%[/bold green]")
+    console.print(
+        f"Results for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1 * 100:.1f}%[/bold green]"
+    )
 
 
 @app.command("benchmark")
@@ -136,22 +164,24 @@ def benchmark_cmd(
     config_path: Path = typer.Option(..., "--config", "-c", help="Path to evaluation config YAML"),
 ) -> None:
     """Run benchmark suites defined in an evaluation config."""
-    cfg = ViPymExperimentConfig.from_yaml(config_path)
     run_experiment(config_path=config_path)
 
 
 @app.command("analyze")
 def analyze_cmd(
-    experiment_dir: Path = typer.Option(Path("./artifacts"), "--dir", "-d", help="Path to experiment artifacts directory"),
+    experiment_dir: Path = typer.Option(
+        Path("./artifacts"), "--dir", "-d", help="Path to experiment artifacts directory"
+    ),
 ) -> None:
     """Perform multi-objective Pareto analysis on results.json."""
     from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
+
     results_file = experiment_dir / "results.json"
     if not results_file.exists():
         console.print(f"[bold red]results.json not found in {experiment_dir}[/bold red]")
         raise typer.Exit(code=1)
 
-    with open(results_file, "r", encoding="utf-8") as f:
+    with open(results_file, encoding="utf-8") as f:
         data = json.load(f)
     points = [ParetoPoint(**d) for d in data]
 
@@ -168,7 +198,7 @@ def analyze_cmd(
     for p in pareto_pts:
         table.add_row(
             p.configuration_name,
-            f"{p.quality_score*100:.1f}%",
+            f"{p.quality_score * 100:.1f}%",
             f"{p.peak_vram_gb:.1f}",
             f"{p.latency_p50_ms:.1f}",
             f"${p.cost_usd:.2f}",
@@ -178,8 +208,12 @@ def analyze_cmd(
 
 @app.command("report")
 def report_cmd(
-    experiment_dir: Path = typer.Option(Path("./artifacts"), "--dir", "-d", help="Experiment directory containing results.json"),
-    format_type: str = typer.Option("markdown", "--format", "-f", help="Output format: markdown, html, latex"),
+    experiment_dir: Path = typer.Option(
+        Path("./artifacts"), "--dir", "-d", help="Experiment directory containing results.json"
+    ),
+    format_type: str = typer.Option(
+        "markdown", "--format", "-f", help="Output format: markdown, html, latex"
+    ),
 ) -> None:
     """Generate or print a report in the specified format."""
     rep_dir = experiment_dir / "reports"
@@ -256,7 +290,9 @@ def inspect_model(
     console.print(f"Active Parameters: [green]{meta.active_parameters / 1e9:.2f}B[/green]")
     console.print(f"Architecture: [yellow]{meta.architecture_type}[/yellow]")
     if meta.num_experts:
-        console.print(f"MoE Experts: [magenta]{meta.num_experts}[/magenta] (Active: {meta.num_selected_experts})")
+        console.print(
+            f"MoE Experts: [magenta]{meta.num_experts}[/magenta] (Active: {meta.num_selected_experts})"
+        )
 
 
 if __name__ == "__main__":

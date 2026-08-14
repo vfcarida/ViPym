@@ -1,16 +1,17 @@
 """HuggingFace and SGLang fallback inference backends."""
 
 import asyncio
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Any
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.core.logger import get_logger
-from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
 from vipym.inference.registry import InferenceRegistry
+from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
 
 logger = get_logger(__name__)
 
@@ -113,7 +114,7 @@ class SGLangInferenceBackend(InferenceBackend):
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
         return GenerationResponse(
-            generated_text=f"# SGLang solution for prompt",
+            generated_text="# SGLang solution for prompt",
             prompt_tokens=len(request.prompt.split()),
             completion_tokens=10,
             time_to_first_token_ms=12.0,

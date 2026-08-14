@@ -1,7 +1,7 @@
 """AWS S3 Chunked Resumable Storage Adapter."""
 
 from pathlib import Path
-from typing import List, Optional
+
 import boto3
 
 from vipym.core.exceptions import CloudOrchestrationError
@@ -55,7 +55,7 @@ class S3ArtifactStore(ArtifactStore):
                 self.upload_file(f, key)
         return f"s3://{self.bucket_name}/{remote_prefix}"
 
-    def list_artifacts(self, prefix: str) -> List[str]:
+    def list_artifacts(self, prefix: str) -> list[str]:
         if self.s3_client is None:
             return []
         resp = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)

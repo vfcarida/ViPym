@@ -1,10 +1,6 @@
 """Artifact Store and Local Checkpoint Registry."""
 
-import hashlib
-import json
 from pathlib import Path
-from typing import Dict, List, Optional
-import pydantic
 
 from vipym.core.logger import get_logger
 from vipym.interfaces.storage import ArtifactStore
@@ -40,7 +36,7 @@ class LocalArtifactStore(ArtifactStore):
                 self.upload_file(f, f"{remote_prefix}/{rel.as_posix()}")
         return str(self.root_dir / remote_prefix)
 
-    def list_artifacts(self, prefix: str) -> List[str]:
+    def list_artifacts(self, prefix: str) -> list[str]:
         target = self.root_dir / prefix
         if not target.exists():
             return []

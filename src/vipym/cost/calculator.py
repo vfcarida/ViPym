@@ -1,8 +1,5 @@
 """Traceable Cloud Cost Calculator."""
 
-from typing import Dict, Optional
-import pydantic
-
 from vipym.config.schema import CostAssumptionConfig
 from vipym.interfaces.cost import CostBreakdown, CostModel
 
@@ -27,8 +24,16 @@ class CloudCostCalculator(CostModel):
         hourly_rate = self.config.aws_ec2_hourly_rate
         total_compute_cost = duration_hours * hourly_rate
 
-        comp_cost = compression_duration_hours * hourly_rate if compression_duration_hours > 0 else total_compute_cost * 0.5
-        eval_cost = eval_duration_hours * hourly_rate if eval_duration_hours > 0 else total_compute_cost * 0.5
+        comp_cost = (
+            compression_duration_hours * hourly_rate
+            if compression_duration_hours > 0
+            else total_compute_cost * 0.5
+        )
+        eval_cost = (
+            eval_duration_hours * hourly_rate
+            if eval_duration_hours > 0
+            else total_compute_cost * 0.5
+        )
 
         # Storage (prorated by monthly duration)
         monthly_storage_rate = self.config.s3_storage_cost_per_gb_month
@@ -41,8 +46,16 @@ class CloudCostCalculator(CostModel):
 
         # Granular per-unit costs
         total_tokens = input_tokens + output_tokens
-        cost_per_1m_in = (eval_cost * (input_tokens / max(1, total_tokens)) / max(1, input_tokens)) * 1_000_000 if input_tokens > 0 else 0.0
-        cost_per_1m_out = (eval_cost * (output_tokens / max(1, total_tokens)) / max(1, output_tokens)) * 1_000_000 if output_tokens > 0 else 0.0
+        cost_per_1m_in = (
+            (eval_cost * (input_tokens / max(1, total_tokens)) / max(1, input_tokens)) * 1_000_000
+            if input_tokens > 0
+            else 0.0
+        )
+        cost_per_1m_out = (
+            (eval_cost * (output_tokens / max(1, total_tokens)) / max(1, output_tokens)) * 1_000_000
+            if output_tokens > 0
+            else 0.0
+        )
         cost_per_task = total_cost / max(1, successful_tasks)
 
         return CostBreakdown(

@@ -1,8 +1,10 @@
 """End-to-end smoke test validating complete baseline -> compression -> eval -> pareto -> reporting."""
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import pytest
+
 from vipym.core.config import (
     CostAssumptionConfig,
     EvaluationConfig,

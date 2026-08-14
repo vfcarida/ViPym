@@ -1,6 +1,5 @@
 """Dynamic Inference Backend Registry."""
 
-from typing import Dict, Type
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.interfaces.inference import InferenceBackend
 
@@ -8,10 +7,10 @@ from vipym.interfaces.inference import InferenceBackend
 class InferenceRegistry:
     """Registry for discovering and instantiating Inference Backends."""
 
-    _registry: Dict[str, Type[InferenceBackend]] = {}
+    _registry: dict[str, type[InferenceBackend]] = {}
 
     @classmethod
-    def register(cls, name: str, backend_cls: Type[InferenceBackend]) -> None:
+    def register(cls, name: str, backend_cls: type[InferenceBackend]) -> None:
         cls._registry[name.lower()] = backend_cls
 
     @classmethod
@@ -25,5 +24,5 @@ class InferenceRegistry:
         return cls._registry[key]()
 
     @classmethod
-    def list_backends(cls) -> Dict[str, Type[InferenceBackend]]:
+    def list_backends(cls) -> dict[str, type[InferenceBackend]]:
         return dict(cls._registry)

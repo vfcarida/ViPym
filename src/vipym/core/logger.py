@@ -1,8 +1,8 @@
 """Structured logging subsystem for ViPym."""
 
 import logging
-import sys
-from typing import Any, Dict
+from typing import Any
+
 from rich.logging import RichHandler
 
 
@@ -28,6 +28,6 @@ class StructuredLogRecord:
     """Utility helper for structured JSON-like log entries."""
 
     @staticmethod
-    def format_event(event_type: str, data: Dict[str, Any]) -> str:
+    def format_event(event_type: str, data: dict[str, Any]) -> str:
         items = " ".join(f"[bold cyan]{k}[/bold cyan]={v}" for k, v in data.items())
         return f"[[bold green]{event_type}[/bold green]] {items}"

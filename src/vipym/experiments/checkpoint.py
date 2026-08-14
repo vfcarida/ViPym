@@ -2,7 +2,8 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
 import pydantic
 
 from vipym.core.logger import get_logger
@@ -12,16 +13,17 @@ logger = get_logger(__name__)
 
 class ExperimentCheckpoint(pydantic.BaseModel):
     """Snapshot of completed stages, intermediate paths, and partial metrics."""
+
     experiment_id: str
     baseline_completed: bool = False
-    baseline_score: Optional[float] = None
-    baseline_metrics: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    compressed_artifact_path: Optional[str] = None
+    baseline_score: float | None = None
+    baseline_metrics: dict[str, Any] = pydantic.Field(default_factory=dict)
+    compressed_artifact_path: str | None = None
     compressed_methods_applied: list[str] = pydantic.Field(default_factory=list)
     evaluation_completed: bool = False
-    evaluation_results: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    evaluation_results: dict[str, Any] = pydantic.Field(default_factory=dict)
     analysis_completed: bool = False
-    pareto_points: list[Dict[str, Any]] = pydantic.Field(default_factory=list)
+    pareto_points: list[dict[str, Any]] = pydantic.Field(default_factory=list)
 
 
 class CheckpointManager:
@@ -33,7 +35,7 @@ class CheckpointManager:
     def load(self, experiment_id: str) -> ExperimentCheckpoint:
         if self.checkpoint_path.exists():
             try:
-                with open(self.checkpoint_path, "r", encoding="utf-8") as f:
+                with open(self.checkpoint_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return ExperimentCheckpoint(**data)
             except Exception as e:

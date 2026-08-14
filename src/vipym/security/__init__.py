@@ -2,8 +2,8 @@
 
 from vipym.security.sandbox import (
     ExecutionResult,
-    SandboxSecurityConfig,
     SandboxedCodeRunner,
+    SandboxSecurityConfig,
     get_threat_model_summary,
     sanitize_execution_environment,
 )

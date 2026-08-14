@@ -2,8 +2,8 @@
 
 import pytest
 from pydantic import ValidationError
+
 from vipym.core.config import (
-    CostAssumptionConfig,
     ModelConfig,
     ServingConfig,
     ViPymExperimentConfig,

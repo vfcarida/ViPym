@@ -1,7 +1,8 @@
 """Unified Report Generator orchestrating Markdown, HTML, LaTeX, and Interactive Plots."""
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
 from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
 from vipym.core.logger import get_logger
 from vipym.reporting.plots.pareto_plots import ParetoPlotGenerator
@@ -23,9 +24,9 @@ class ExperimentReportGenerator:
         self,
         experiment_id: str,
         baseline: ParetoPoint,
-        results: List[ParetoPoint],
-        manifest_meta: Dict[str, Any],
-    ) -> Dict[str, Path]:
+        results: list[ParetoPoint],
+        manifest_meta: dict[str, Any],
+    ) -> dict[str, Path]:
         # Compute Pareto optimality across all points (including baseline)
         all_points = [baseline] + results
         self.optimizer.compute_pareto_frontier(all_points)

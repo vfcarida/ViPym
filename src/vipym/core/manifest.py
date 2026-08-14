@@ -1,13 +1,14 @@
 """Immutable manifest generator capturing full system, hardware, and configuration state."""
 
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import platform
 import sys
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from vipym.__version__ import __version__ as VIPYM_VERSION
@@ -17,18 +18,19 @@ from vipym.core.constants import ExecutionStatus
 
 class SystemEnvironmentInfo(BaseModel):
     """System, library, and hardware environment snapshot."""
+
     vipym_version: str
     python_version: str
     host_os: str
     host_platform: str
-    torch_version: Optional[str] = None
-    transformers_version: Optional[str] = None
-    vllm_version: Optional[str] = None
-    cuda_driver_version: Optional[str] = None
-    cuda_runtime_version: Optional[str] = None
-    gpu_devices: List[str] = Field(default_factory=list)
-    git_commit_sha: Optional[str] = None
-    container_digest: Optional[str] = None
+    torch_version: str | None = None
+    transformers_version: str | None = None
+    vllm_version: str | None = None
+    cuda_driver_version: str | None = None
+    cuda_runtime_version: str | None = None
+    gpu_devices: list[str] = Field(default_factory=list)
+    git_commit_sha: str | None = None
+    container_digest: str | None = None
 
     @classmethod
     def capture(cls) -> "SystemEnvironmentInfo":
@@ -41,6 +43,7 @@ class SystemEnvironmentInfo(BaseModel):
 
         try:
             import torch
+
             torch_ver = torch.__version__
             if torch.cuda.is_available():
                 for i in range(torch.cuda.device_count()):
@@ -51,12 +54,14 @@ class SystemEnvironmentInfo(BaseModel):
 
         try:
             import transformers
+
             transformers_ver = transformers.__version__
         except ImportError:
             pass
 
         try:
             import vllm
+
             vllm_ver = vllm.__version__
         except ImportError:
             pass
@@ -65,6 +70,7 @@ class SystemEnvironmentInfo(BaseModel):
         if git_commit == "unknown":
             try:
                 import subprocess
+
                 res = subprocess.run(
                     ["git", "rev-parse", "HEAD"],
                     capture_output=True,
@@ -94,28 +100,29 @@ class SystemEnvironmentInfo(BaseModel):
 
 class ImmutableExperimentManifest(BaseModel):
     """Deterministic, immutable record of an experiment run."""
+
     manifest_id: str
     experiment_id: str
     timestamp_utc: str
     config_hash_sha256: str
     experiment_config: ViPymExperimentConfig
     environment: SystemEnvironmentInfo
-    baseline_manifest_id: Optional[str] = None
+    baseline_manifest_id: str | None = None
     execution_status: ExecutionStatus = ExecutionStatus.PENDING
     execution_time_seconds: float = 0.0
     total_cost_usd: float = 0.0
-    summary_metrics: Dict[str, Any] = Field(default_factory=dict)
-    artifacts: Dict[str, str] = Field(default_factory=dict)
+    summary_metrics: dict[str, Any] = Field(default_factory=dict)
+    artifacts: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def create(
         cls,
         config: ViPymExperimentConfig,
-        baseline_id: Optional[str] = None,
+        baseline_id: str | None = None,
     ) -> "ImmutableExperimentManifest":
         config_json = json.dumps(config.model_dump(), sort_keys=True)
         config_hash = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         manifest_id = f"manifest-{config.experiment_id}-{config_hash[:8]}"
 
         return cls(

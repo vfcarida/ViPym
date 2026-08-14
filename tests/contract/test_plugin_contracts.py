@@ -1,6 +1,5 @@
 """Contract tests verifying that all registered plugins adhere to ABC specifications."""
 
-import pytest
 from vipym.compression.registry import CompressionRegistry
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.inference.registry import InferenceRegistry
@@ -12,7 +11,7 @@ from vipym.models.registry import ModelRegistry
 
 
 def test_model_adapters_contract():
-    for name, adapter_cls in ModelRegistry.list_adapters().items():
+    for _name, adapter_cls in ModelRegistry.list_adapters().items():
         adapter = adapter_cls()
         assert isinstance(adapter, ModelAdapter)
         caps = adapter.get_capabilities()
@@ -21,7 +20,7 @@ def test_model_adapters_contract():
 
 
 def test_compression_methods_contract():
-    for name, method_cls in CompressionRegistry.list_methods().items():
+    for _name, method_cls in CompressionRegistry.list_methods().items():
         method = method_cls()
         assert isinstance(method, CompressionMethod)
         assert hasattr(method, "name")
@@ -30,13 +29,13 @@ def test_compression_methods_contract():
 
 
 def test_inference_backends_contract():
-    for name, backend_cls in InferenceRegistry.list_backends().items():
+    for _name, backend_cls in InferenceRegistry.list_backends().items():
         backend = backend_cls()
         assert isinstance(backend, InferenceBackend)
 
 
 def test_evaluation_suites_contract():
-    for name, suite_cls in EvaluationRegistry.list_suites().items():
+    for _name, suite_cls in EvaluationRegistry.list_suites().items():
         suite = suite_cls()
         assert isinstance(suite, EvaluationSuite)
         assert hasattr(suite, "name")

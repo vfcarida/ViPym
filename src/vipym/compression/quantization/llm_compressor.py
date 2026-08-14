@@ -1,15 +1,16 @@
 """Unified LLM-Compressor adapter for vLLM-compatible compressed-tensors checkpoints."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.exceptions import CompressionPipelineError
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -45,24 +46,32 @@ class LLMCompressorAdapter(CompressionMethod):
         )
 
     def validate_applicability(self, model_metadata: ModelMetadata) -> None:
-        if self._scheme == "W4A16" and SupportedDtype.INT4 not in self.get_capabilities().supported_dtypes:
-            raise CompressionPipelineError(f"Scheme {self._scheme} not supported on {model_metadata.model_id}")
+        if (
+            self._scheme == "W4A16"
+            and SupportedDtype.INT4 not in self.get_capabilities().supported_dtypes
+        ):
+            raise CompressionPipelineError(
+                f"Scheme {self._scheme} not supported on {model_metadata.model_id}"
+            )
 
     def compress(
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./compressed_model")
         out.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Applying llm-compressor algorithm='{self._algorithm}' scheme='{self._scheme}'")
+        logger.info(
+            f"Applying llm-compressor algorithm='{self._algorithm}' scheme='{self._scheme}'"
+        )
 
         try:
             from llmcompressor.transformers import oneshot
+
             # Check if recipe or modifiers provided
             recipe = kwargs.get("recipe")
             if recipe is None:

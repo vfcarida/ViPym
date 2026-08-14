@@ -34,8 +34,12 @@ class AWSTraceableCostModel(CostModel):
 
         # Per-token costs
         total_tokens = input_tokens + output_tokens
-        cost_per_1m_in = (compute_cost * (input_tokens / max(1, total_tokens)) / max(1, input_tokens)) * 1_000_000
-        cost_per_1m_out = (compute_cost * (output_tokens / max(1, total_tokens)) / max(1, output_tokens)) * 1_000_000
+        cost_per_1m_in = (
+            compute_cost * (input_tokens / max(1, total_tokens)) / max(1, input_tokens)
+        ) * 1_000_000
+        cost_per_1m_out = (
+            compute_cost * (output_tokens / max(1, total_tokens)) / max(1, output_tokens)
+        ) * 1_000_000
         cost_per_task = total_cost / max(1, successful_tasks)
 
         return CostBreakdown(

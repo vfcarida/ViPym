@@ -1,13 +1,14 @@
 """vLLM high-performance inference engine wrapper."""
 
 import asyncio
-from pathlib import Path
 import time
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
+
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.core.logger import get_logger
-from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
 from vipym.inference.registry import InferenceRegistry
+from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,7 @@ class VLLMInferenceBackend(InferenceBackend):
 
         try:
             from vllm import LLM, SamplingParams
+
             self.sampling_params_cls = SamplingParams
             self.llm = LLM(
                 model=self.model_path,
@@ -59,7 +61,9 @@ class VLLMInferenceBackend(InferenceBackend):
 
         if self.llm == "mock_vllm_engine":
             # Deterministic mock response for smoke testing
-            gen_text = f"def solution():\n    return 'mock_solution_for_{hash(request.prompt) % 1000}'\n"
+            gen_text = (
+                f"def solution():\n    return 'mock_solution_for_{hash(request.prompt) % 1000}'\n"
+            )
             ttft = 15.0
             itl = 5.0
             total_time = 40.0

@@ -1,7 +1,7 @@
 """Unit tests for sandboxed execution and environment sanitization."""
 
-from vipym.security.sanitizer import sanitize_execution_environment
 from vipym.security.sandbox import SandboxedCodeRunner
+from vipym.security.sanitizer import sanitize_execution_environment
 
 
 def test_environment_sanitization():

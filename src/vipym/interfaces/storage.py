@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional
 
 
 class ArtifactStore(ABC):
@@ -24,6 +23,6 @@ class ArtifactStore(ABC):
         pass
 
     @abstractmethod
-    def list_artifacts(self, prefix: str) -> List[str]:
+    def list_artifacts(self, prefix: str) -> list[str]:
         """List artifacts matching prefix."""
         pass

@@ -1,7 +1,8 @@
 """Example demonstrating how to write and register a custom compression algorithm plugin in ViPym."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch.nn as nn
 
 from vipym.compression.registry import CompressionRegistry
@@ -36,8 +37,8 @@ class CustomQuantizationPlugin(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./custom_compressed_weights")

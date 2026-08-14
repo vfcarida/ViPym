@@ -1,25 +1,28 @@
 """Interfaces for Evaluation Suites and Benchmark Tasks."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import pydantic
 
 
 class BenchmarkTask(pydantic.BaseModel):
     """Generic representation of a benchmark question/task."""
+
     task_id: str
     suite: str
-    entry_point: Optional[str] = None
+    entry_point: str | None = None
     prompt: str
-    canonical_solution: Optional[str] = None
+    canonical_solution: str | None = None
     test_code: str
     timeout_seconds: int = 15
-    release_date: Optional[str] = None
-    metadata: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    release_date: str | None = None
+    metadata: dict[str, Any] = pydantic.Field(default_factory=dict)
 
 
 class TaskResult(pydantic.BaseModel):
     """Execution result of an individual evaluation task."""
+
     task_id: str
     suite: str
     prompt: str
@@ -29,12 +32,13 @@ class TaskResult(pydantic.BaseModel):
     unit_tests_passed: int
     unit_tests_total: int
     execution_time_ms: float
-    error_message: Optional[str] = None
-    stdout: Optional[str] = None
+    error_message: str | None = None
+    stdout: str | None = None
 
 
 class EvaluationSuiteResult(pydantic.BaseModel):
     """Aggregated score for a benchmark suite."""
+
     suite_name: str
     benchmark_version: str
     total_tasks: int
@@ -42,9 +46,9 @@ class EvaluationSuiteResult(pydantic.BaseModel):
     pass_at_1: float
     compile_rate: float
     unit_test_pass_rate: float
-    task_results: List[TaskResult]
+    task_results: list[TaskResult]
     contamination_risk_score: float = 0.0
-    summary_metrics: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    summary_metrics: dict[str, Any] = pydantic.Field(default_factory=dict)
 
 
 class EvaluationSuite(ABC):
@@ -63,12 +67,12 @@ class EvaluationSuite(ABC):
         pass
 
     @abstractmethod
-    def load_tasks(self, limit: Optional[int] = None) -> List[BenchmarkTask]:
+    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         """Load benchmark tasks."""
         pass
 
     @abstractmethod
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Optional[Any] = None) -> str:
+    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
         """Format task into model prompt."""
         pass
 

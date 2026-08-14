@@ -1,10 +1,7 @@
 """Integration test for distillation pipeline and synthetic dataset caching."""
 
-from pathlib import Path
-import tempfile
 from vipym.compression.distillation.logit_distill import TeacherSyntheticDataPipeline
 from vipym.compression.distillation.response_distill import ResponseDistillationMethod
-from vipym.interfaces.model import ModelMetadata, PluginCapability
 
 
 def test_teacher_synthetic_generation_and_caching():

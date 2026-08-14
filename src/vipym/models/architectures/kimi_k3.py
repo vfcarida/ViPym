@@ -9,7 +9,8 @@ Key Specifications:
 - Native Quantization: MXFP4 Weights + MXFP8 Activations (QAT)
 """
 
-from typing import Any, Optional
+from typing import Any
+
 import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoTokenizer
@@ -87,12 +88,13 @@ class KimiK3ModelAdapter(ModelAdapter):
         model_id_or_path: str,
         revision: str = "main",
         device_map: str = "auto",
-        torch_dtype: Optional[torch.dtype] = None,
+        torch_dtype: torch.dtype | None = None,
         **kwargs: Any,
     ) -> nn.Module:
         """Load Kimi K3 for offline compression/calibration."""
         try:
             from transformers import AutoModelForCausalLM
+
             model = AutoModelForCausalLM.from_pretrained(
                 model_id_or_path,
                 revision=revision,

@@ -1,11 +1,11 @@
 """Sandboxed Execution Engine using Docker / gVisor (runsc)."""
 
 import ast
-from pathlib import Path
 import subprocess
 import tempfile
 import time
-from typing import Optional, Tuple
+from pathlib import Path
+
 import pydantic
 
 from vipym.core.logger import get_logger
@@ -27,7 +27,7 @@ class ExecutionResult(pydantic.BaseModel):
 class SandboxedCodeRunner:
     """Isolated execution engine for untrusted generated code."""
 
-    def __init__(self, config: Optional[SandboxSecurityConfig] = None) -> None:
+    def __init__(self, config: SandboxSecurityConfig | None = None) -> None:
         self.config = config or SandboxSecurityConfig()
 
     def validate_ast(self, code: str) -> bool:
@@ -38,7 +38,7 @@ class SandboxedCodeRunner:
         except SyntaxError:
             return False
 
-    def execute_in_sandbox(self, full_code: str, timeout_sec: Optional[int] = None) -> ExecutionResult:
+    def execute_in_sandbox(self, full_code: str, timeout_sec: int | None = None) -> ExecutionResult:
         """Execute full test script inside sandbox with resource and security constraints."""
         timeout = timeout_sec or self.config.timeout_seconds
         start_time = time.perf_counter()
@@ -55,7 +55,9 @@ class SandboxedCodeRunner:
 
         # Fallback local process isolation with timeout and clean env if Docker is not available
         try:
-            with tempfile.NamedTemporaryFile(suffix=".py", mode="w", encoding="utf-8", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                suffix=".py", mode="w", encoding="utf-8", delete=False
+            ) as f:
                 f.write(full_code)
                 script_path = f.name
 
@@ -66,6 +68,7 @@ class SandboxedCodeRunner:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                env=clean_env,
             )
             exec_time = (time.perf_counter() - start_time) * 1000.0
 

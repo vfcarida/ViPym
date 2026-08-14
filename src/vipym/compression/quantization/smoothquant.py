@@ -1,14 +1,15 @@
 """SmoothQuant (W8A8) activation smoothing and quantization adapter."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -43,8 +44,8 @@ class SmoothQuantCompressionMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./smoothquant_model")
@@ -53,6 +54,7 @@ class SmoothQuantCompressionMethod(CompressionMethod):
 
         try:
             from llmcompressor.transformers import oneshot
+
             recipe = f"""
             quant_stage:
                 quant_modifiers:

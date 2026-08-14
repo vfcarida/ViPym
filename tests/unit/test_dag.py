@@ -1,6 +1,7 @@
 """Unit tests for DAG pipeline validation and topological sort."""
 
 import pytest
+
 from vipym.compression.pipeline import DAGCompressionPipeline
 from vipym.compression.quantization.awq import AWQCompressionMethod
 from vipym.compression.transforms.spinquant import SpinQuantTransformMethod

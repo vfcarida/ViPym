@@ -1,8 +1,7 @@
 """Unified telemetry and metrics collector."""
 
+import numpy as np
 import psutil
-import pydantic
-from typing import Any, Dict, List, Optional
 import torch
 
 from vipym.interfaces.metrics import TelemetrySnapshot
@@ -12,8 +11,8 @@ class TelemetryCollector:
     """Collects real-time hardware telemetry (Peak VRAM, RSS memory, Latency)."""
 
     def __init__(self) -> None:
-        self.ttft_records: List[float] = []
-        self.itl_records: List[float] = []
+        self.ttft_records: list[float] = []
+        self.itl_records: list[float] = []
         self.total_tokens: int = 0
         self.requests_count: int = 0
 
@@ -50,6 +49,3 @@ class TelemetryCollector:
             total_requests_processed=self.requests_count,
             total_tokens_generated=self.total_tokens,
         )
-
-
-import numpy as np

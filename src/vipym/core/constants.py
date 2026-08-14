@@ -1,15 +1,15 @@
 """Core constants used throughout ViPym."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ComputeArchitecture(str, Enum):
+class ComputeArchitecture(StrEnum):
     DENSE = "dense"
     MOE = "moe"
     HYBRID_ATTENTION = "hybrid_attention"
 
 
-class SupportedDtype(str, Enum):
+class SupportedDtype(StrEnum):
     FP32 = "fp32"
     FP16 = "fp16"
     BF16 = "bf16"
@@ -21,7 +21,7 @@ class SupportedDtype(str, Enum):
     INT4 = "int4"
 
 
-class CompressionMethodType(str, Enum):
+class CompressionMethodType(StrEnum):
     RTN = "rtn"
     AWQ = "awq"
     GPTQ = "gptq"
@@ -40,13 +40,13 @@ class CompressionMethodType(str, Enum):
     KV_CACHE_INT4 = "kv_cache_int4"
 
 
-class ServingBackendType(str, Enum):
+class ServingBackendType(StrEnum):
     VLLM = "vllm"
     SGLANG = "sglang"
     HUGGINGFACE = "hf"
 
 
-class ExecutionStatus(str, Enum):
+class ExecutionStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"

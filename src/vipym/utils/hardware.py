@@ -2,13 +2,13 @@
 
 import hashlib
 from pathlib import Path
-from typing import Any, Dict, List
+
 import pydantic
 
 
 class HardwareTopology(pydantic.BaseModel):
     gpu_count: int
-    gpu_names: List[str]
+    gpu_names: list[str]
     cuda_available: bool
     cuda_version: str = "N/A"
     total_vram_gb: float = 0.0
@@ -29,6 +29,7 @@ class HardwareDiscovery:
 
         try:
             import torch
+
             if torch.cuda.is_available():
                 cuda_avail = True
                 gpu_count = torch.cuda.device_count()

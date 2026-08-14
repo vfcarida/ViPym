@@ -1,9 +1,6 @@
 """Environment sanitizer and secure credential scrubber."""
 
-import os
-from typing import Dict, Set
-
-SENSITIVE_ENV_PREFIXES: Set[str] = {
+SENSITIVE_ENV_PREFIXES: set[str] = {
     "AWS_",
     "HF_",
     "HUGGING_FACE",
@@ -17,7 +14,7 @@ SENSITIVE_ENV_PREFIXES: Set[str] = {
 }
 
 
-def sanitize_execution_environment() -> Dict[str, str]:
+def sanitize_execution_environment() -> dict[str, str]:
     """Return a sanitized, minimal environment dict with all sensitive credentials stripped."""
     clean_env = {
         "PYTHONPATH": "",

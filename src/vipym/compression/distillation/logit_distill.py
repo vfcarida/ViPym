@@ -1,14 +1,15 @@
 """Logit Distillation & Teacher-Generated Synthetic Data pipeline."""
 
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -50,13 +51,15 @@ class LogitDistillationMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./logit_distilled_model")
         out.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Executing Logit Distillation (T={self.temperature}, alpha_ce={self.alpha_ce})")
+        logger.info(
+            f"Executing Logit Distillation (T={self.temperature}, alpha_ce={self.alpha_ce})"
+        )
 
         if hasattr(model, "save_pretrained"):
             model.save_pretrained(out)
@@ -81,13 +84,16 @@ class LogitDistillationMethod(CompressionMethod):
 class TeacherSyntheticDataPipeline:
     """Generates high-quality synthetic task solutions using frontier teacher LLM."""
 
-    def __init__(self, teacher_backend: Any, prompt_templates: List[str]) -> None:
+    def __init__(self, teacher_backend: Any, prompt_templates: list[str]) -> None:
         self.teacher_backend = teacher_backend
         self.prompt_templates = prompt_templates
 
-    def generate_dataset(self, num_samples: int = 1000) -> List[dict]:
+    def generate_dataset(self, num_samples: int = 1000) -> list[dict]:
         logger.info(f"Generating {num_samples} synthetic reasoning samples from teacher")
-        return [{"instruction": f"Solve task {i}", "response": f"# Solution {i}"} for i in range(num_samples)]
+        return [
+            {"instruction": f"Solve task {i}", "response": f"# Solution {i}"}
+            for i in range(num_samples)
+        ]
 
 
 CompressionRegistry.register("distill_logit", LogitDistillationMethod)

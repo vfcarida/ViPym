@@ -1,14 +1,15 @@
 """GPTQ Second-Order Quantization adapter."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,12 @@ class GPTQCompressionMethod(CompressionMethod):
                 ComputeArchitecture.MOE,
                 ComputeArchitecture.HYBRID_ATTENTION,
             },
-            supported_dtypes={SupportedDtype.INT4, SupportedDtype.INT8, SupportedDtype.FP16, SupportedDtype.BF16},
+            supported_dtypes={
+                SupportedDtype.INT4,
+                SupportedDtype.INT8,
+                SupportedDtype.FP16,
+                SupportedDtype.BF16,
+            },
             supports_moe=True,
             requires_calibration=True,
             supported_runtimes={"vllm", "sglang"},
@@ -45,8 +51,8 @@ class GPTQCompressionMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./gptq_model")
@@ -55,6 +61,7 @@ class GPTQCompressionMethod(CompressionMethod):
 
         try:
             from llmcompressor.transformers import oneshot
+
             recipe = f"""
             quant_stage:
                 quant_modifiers:
@@ -83,7 +90,11 @@ class GPTQCompressionMethod(CompressionMethod):
             format="compressed-tensors",
             compressed_size_bytes=total_bytes,
             applied_methods=[self.name],
-            metadata={"bits": self.bits, "group_size": self.group_size, "damp_percent": self.damp_percent},
+            metadata={
+                "bits": self.bits,
+                "group_size": self.group_size,
+                "damp_percent": self.damp_percent,
+            },
         )
 
 

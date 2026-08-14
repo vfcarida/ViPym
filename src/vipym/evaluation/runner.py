@@ -1,12 +1,10 @@
 """Evaluation Suite Runner and Aggregator."""
 
-import time
-from typing import Dict, List, Optional
 from vipym.core.logger import get_logger
-from vipym.interfaces.evaluation import EvaluationSuite, EvaluationSuiteResult, TaskResult
-from vipym.interfaces.inference import GenerationRequest, InferenceBackend
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
+from vipym.interfaces.evaluation import EvaluationSuiteResult, TaskResult
+from vipym.interfaces.inference import GenerationRequest, InferenceBackend
 
 logger = get_logger(__name__)
 
@@ -14,7 +12,7 @@ logger = get_logger(__name__)
 class BenchmarkRunner:
     """Orchestrates running multiple evaluation suites against an active inference backend."""
 
-    def __init__(self, sandbox_runner: Optional[SandboxedCodeRunner] = None) -> None:
+    def __init__(self, sandbox_runner: SandboxedCodeRunner | None = None) -> None:
         self.sandbox = sandbox_runner or SandboxedCodeRunner()
 
     def run_suite(
@@ -24,17 +22,17 @@ class BenchmarkRunner:
         temperature: float = 0.0,
         top_p: float = 1.0,
         max_new_tokens: int = 2048,
-        task_limit: Optional[int] = None,
+        task_limit: int | None = None,
     ) -> EvaluationSuiteResult:
         suite = EvaluationRegistry.get(suite_name)
         tasks = suite.load_tasks(limit=task_limit)
         logger.info(f"Evaluating suite '{suite.name}' ({suite.version}) with {len(tasks)} tasks")
 
-        task_results: List[TaskResult] = []
+        task_results: list[TaskResult] = []
         passed_count = 0
         compile_count = 0
 
-        for idx, task in enumerate(tasks):
+        for _idx, task in enumerate(tasks):
             prompt = suite.format_prompt(task)
             gen_req = GenerationRequest(
                 prompt=prompt,

@@ -1,6 +1,5 @@
 """LaTeX and HTML report renderers."""
 
-from typing import Any, Dict, List
 from vipym.analysis.pareto import ParetoPoint
 
 
@@ -8,7 +7,7 @@ class LaTeXTableRenderer:
     """Renders camera-ready LaTeX table for academic research papers."""
 
     @staticmethod
-    def render(experiment_id: str, results: List[ParetoPoint]) -> str:
+    def render(experiment_id: str, results: list[ParetoPoint]) -> str:
         lines = [
             r"\begin{table*}[t]",
             r"\centering",
@@ -21,15 +20,18 @@ class LaTeXTableRenderer:
         ]
         for r in results:
             pareto_str = r"\checkmark" if r.is_pareto_optimal else ""
+            escaped_name = r.configuration_name.replace("_", r"\_")
             lines.append(
-                f"{r.configuration_name.replace('_', r'\_')} & {r.quality_score*100:.1f} & {r.latency_p50_ms:.1f} & {r.peak_vram_gb:.1f} & {r.compression_ratio:.1f}x & {pareto_str} \\\\"
+                f"{escaped_name} & {r.quality_score * 100:.1f} & {r.latency_p50_ms:.1f} & {r.peak_vram_gb:.1f} & {r.compression_ratio:.1f}x & {pareto_str} \\\\"
             )
-        lines.extend([
-            r"\bottomrule",
-            r"\end{tabular}",
-            r"\label{tab:vipym_results}",
-            r"\end{table*}",
-        ])
+        lines.extend(
+            [
+                r"\bottomrule",
+                r"\end{tabular}",
+                r"\label{tab:vipym_results}",
+                r"\end{table*}",
+            ]
+        )
         return "\n".join(lines)
 
 
@@ -37,9 +39,9 @@ class HTMLReportRenderer:
     """Renders standalone interactive HTML dashboard."""
 
     @staticmethod
-    def render(experiment_id: str, results: List[ParetoPoint]) -> str:
+    def render(experiment_id: str, results: list[ParetoPoint]) -> str:
         rows = "".join(
-            f"<tr><td><code>{r.configuration_name}</code></td><td>{r.quality_score*100:.1f}%</td><td>{r.latency_p50_ms:.1f} ms</td><td>{r.peak_vram_gb:.1f} GB</td><td>{r.compression_ratio:.1f}x</td><td>{'⭐ Yes' if r.is_pareto_optimal else 'No'}</td></tr>"
+            f"<tr><td><code>{r.configuration_name}</code></td><td>{r.quality_score * 100:.1f}%</td><td>{r.latency_p50_ms:.1f} ms</td><td>{r.peak_vram_gb:.1f} GB</td><td>{r.compression_ratio:.1f}x</td><td>{'⭐ Yes' if r.is_pareto_optimal else 'No'}</td></tr>"
             for r in results
         )
         return f"""<!DOCTYPE html>

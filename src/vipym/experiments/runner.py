@@ -1,11 +1,13 @@
 """Resumable Experiment Execution Runner."""
 
-from pathlib import Path
+import json
 import time
-from typing import Dict, List, Optional
+from pathlib import Path
+
 import pydantic
 
-from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
+from vipym.analysis.pareto import ParetoPoint
+from vipym.compression.registry import CompressionRegistry
 from vipym.config.constants import ExperimentState
 from vipym.config.schema import ViPymExperimentConfig
 from vipym.core.logger import get_logger
@@ -18,7 +20,6 @@ from vipym.inference.registry import InferenceRegistry
 from vipym.interfaces.compression import CompressionArtifact
 from vipym.models.registry import ModelRegistry
 from vipym.pipelines.dag import DirectedAcyclicCompressionPipeline
-from vipym.compression.registry import CompressionRegistry
 from vipym.reporting.generator import ExperimentReportGenerator
 
 logger = get_logger(__name__)
@@ -29,8 +30,8 @@ class ExperimentRunSummary(pydantic.BaseModel):
     manifest_id: str
     final_state: ExperimentState
     baseline_point: ParetoPoint
-    compressed_points: List[ParetoPoint]
-    generated_report_files: Dict[str, str]
+    compressed_points: list[ParetoPoint]
+    generated_report_files: dict[str, str]
     total_duration_sec: float
     total_cost_usd: float
 
@@ -38,11 +39,13 @@ class ExperimentRunSummary(pydantic.BaseModel):
 class ResumableExperimentRunner:
     """Orchestrates end-to-end experiment execution with full checkpointing and resumability."""
 
-    def __init__(self, config: ViPymExperimentConfig, artifacts_dir: Path | str = "./artifacts") -> None:
+    def __init__(
+        self, config: ViPymExperimentConfig, artifacts_dir: Path | str = "./artifacts"
+    ) -> None:
         self.config = config
         self.exp_dir = Path(artifacts_dir) / config.experiment_id
         self.exp_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.state_mgr = ExperimentStateManager(config.experiment_id, self.exp_dir / "state.json")
         self.checkpoint_mgr = CheckpointManager(self.exp_dir / "checkpoint.json")
         self.checkpoint: ExperimentCheckpoint = self.checkpoint_mgr.load(config.experiment_id)
@@ -51,7 +54,9 @@ class ResumableExperimentRunner:
 
     def run(self, resume: bool = True) -> ExperimentRunSummary:
         start_time = time.perf_counter()
-        logger.info(f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume})")
+        logger.info(
+            f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume})"
+        )
 
         try:
             # 1. Validation Stage
@@ -65,10 +70,12 @@ class ResumableExperimentRunner:
             except Exception:
                 model_adapter = ModelRegistry.get("hf")
 
-            metadata = model_adapter.inspect_metadata(self.config.model.id, revision=self.config.model.revision)
+            metadata = model_adapter.inspect_metadata(
+                self.config.model.id, revision=self.config.model.revision
+            )
             logger.info(
-                f"Inspected Target Model '{metadata.model_id}': total_params={metadata.total_parameters/1e9:.1f}B, "
-                f"active_params={metadata.active_parameters/1e9:.1f}B, arch={metadata.architecture_type}"
+                f"Inspected Target Model '{metadata.model_id}': total_params={metadata.total_parameters / 1e9:.1f}B, "
+                f"active_params={metadata.active_parameters / 1e9:.1f}B, arch={metadata.architecture_type}"
             )
 
             # 2. Baseline Stage
@@ -99,7 +106,8 @@ class ResumableExperimentRunner:
                 backend.stop()
 
                 base_pass1 = (
-                    sum(s.pass_at_1 for s in baseline_suite_results) / max(1, len(baseline_suite_results))
+                    sum(s.pass_at_1 for s in baseline_suite_results)
+                    / max(1, len(baseline_suite_results))
                     if baseline_suite_results
                     else 0.0
                 )
@@ -127,7 +135,7 @@ class ResumableExperimentRunner:
             )
 
             # 3. Compression DAG Pipeline Stage
-            compressed_artifact: Optional[CompressionArtifact] = None
+            compressed_artifact: CompressionArtifact | None = None
             if self.config.compression_pipeline:
                 if self.checkpoint.compressed_artifact_path is None or not resume:
                     self.state_mgr.transition_to(ExperimentState.COMPRESSION_RUNNING)
@@ -195,7 +203,8 @@ class ResumableExperimentRunner:
                     comp_backend.stop()
 
                     comp_pass1 = (
-                        sum(s.pass_at_1 for s in comp_suite_results) / max(1, len(comp_suite_results))
+                        sum(s.pass_at_1 for s in comp_suite_results)
+                        / max(1, len(comp_suite_results))
                         if comp_suite_results
                         else 0.0
                     )
@@ -243,15 +252,25 @@ class ResumableExperimentRunner:
             )
 
             # Save individual standard JSON artifacts
-            (self.exp_dir / "experiment.json").write_text(self.config.model_dump_json(indent=2), encoding="utf-8")
-            (self.exp_dir / "environment.json").write_text(self.manifest.environment.model_dump_json(indent=2), encoding="utf-8")
-            (self.exp_dir / "metrics.json").write_text(cost_breakdown.model_dump_json(indent=2), encoding="utf-8")
+            (self.exp_dir / "experiment.json").write_text(
+                self.config.model_dump_json(indent=2), encoding="utf-8"
+            )
+            (self.exp_dir / "environment.json").write_text(
+                self.manifest.environment.model_dump_json(indent=2), encoding="utf-8"
+            )
+            (self.exp_dir / "metrics.json").write_text(
+                cost_breakdown.model_dump_json(indent=2), encoding="utf-8"
+            )
             (self.exp_dir / "results.json").write_text(
-                json.dumps([baseline_point.model_dump()] + [p.model_dump() for p in compressed_points], indent=2),
+                json.dumps(
+                    [baseline_point.model_dump()] + [p.model_dump() for p in compressed_points],
+                    indent=2,
+                ),
                 encoding="utf-8",
             )
             (self.exp_dir / "artifacts.json").write_text(
-                json.dumps({k: str(v) for k, v in generated_files.items()}, indent=2), encoding="utf-8"
+                json.dumps({k: str(v) for k, v in generated_files.items()}, indent=2),
+                encoding="utf-8",
             )
 
             self.manifest.state = ExperimentState.REPORT_COMPLETED
@@ -261,7 +280,9 @@ class ResumableExperimentRunner:
             self.manifest.save(self.exp_dir / "manifest.json")
 
             self.state_mgr.transition_to(ExperimentState.REPORT_COMPLETED)
-            logger.info(f"✓ Experiment [{self.config.experiment_id}] completed successfully in {total_duration:.2f}s")
+            logger.info(
+                f"✓ Experiment [{self.config.experiment_id}] completed successfully in {total_duration:.2f}s"
+            )
 
             return ExperimentRunSummary(
                 experiment_id=self.config.experiment_id,
@@ -278,6 +299,3 @@ class ResumableExperimentRunner:
             self.state_mgr.transition_to(ExperimentState.FAILED, error_message=str(e))
             logger.error(f"Experiment [{self.config.experiment_id}] failed: {e}")
             raise
-
-
-import json

@@ -1,6 +1,5 @@
 """Dynamic Model Adapter Registry."""
 
-from typing import Dict, Type
 from vipym.core.exceptions import ModelAdapterError
 from vipym.interfaces.model import ModelAdapter
 
@@ -8,10 +7,10 @@ from vipym.interfaces.model import ModelAdapter
 class ModelRegistry:
     """Registry for discovering and instantiating Model Adapters."""
 
-    _registry: Dict[str, Type[ModelAdapter]] = {}
+    _registry: dict[str, type[ModelAdapter]] = {}
 
     @classmethod
-    def register(cls, name: str, adapter_cls: Type[ModelAdapter]) -> None:
+    def register(cls, name: str, adapter_cls: type[ModelAdapter]) -> None:
         """Register a model adapter class."""
         cls._registry[name.lower()] = adapter_cls
 
@@ -27,6 +26,6 @@ class ModelRegistry:
         return cls._registry[key]()
 
     @classmethod
-    def list_adapters(cls) -> Dict[str, Type[ModelAdapter]]:
+    def list_adapters(cls) -> dict[str, type[ModelAdapter]]:
         """List all registered adapters."""
         return dict(cls._registry)

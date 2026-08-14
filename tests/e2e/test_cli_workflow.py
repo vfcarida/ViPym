@@ -1,8 +1,7 @@
 """End-to-end tests exercising the Typer CLI commands."""
 
-from pathlib import Path
-import tempfile
 from typer.testing import CliRunner
+
 from vipym.cli.main import app
 
 runner = CliRunner()

@@ -1,6 +1,5 @@
 """Dynamic Compression Plugin Registry."""
 
-from typing import Dict, Type
 from vipym.core.exceptions import CompressionPipelineError
 from vipym.interfaces.compression import CompressionMethod
 
@@ -8,10 +7,10 @@ from vipym.interfaces.compression import CompressionMethod
 class CompressionRegistry:
     """Registry for discovering and instantiating Compression Methods."""
 
-    _registry: Dict[str, Type[CompressionMethod]] = {}
+    _registry: dict[str, type[CompressionMethod]] = {}
 
     @classmethod
-    def register(cls, name: str, method_cls: Type[CompressionMethod]) -> None:
+    def register(cls, name: str, method_cls: type[CompressionMethod]) -> None:
         cls._registry[name.lower()] = method_cls
 
     @classmethod
@@ -25,5 +24,5 @@ class CompressionRegistry:
         return cls._registry[key]()
 
     @classmethod
-    def list_methods(cls) -> Dict[str, Type[CompressionMethod]]:
+    def list_methods(cls) -> dict[str, type[CompressionMethod]]:
         return dict(cls._registry)

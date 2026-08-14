@@ -1,13 +1,11 @@
 """Multi-objective Pareto Frontier calculation engine."""
 
-from typing import Dict, List, Optional
-import numpy as np
-import pandas as pd
 import pydantic
 
 
 class ParetoPoint(pydantic.BaseModel):
     """Data point in multi-dimensional objective space."""
+
     experiment_id: str
     configuration_name: str
     quality_score: float  # maximize
@@ -21,11 +19,15 @@ class ParetoPoint(pydantic.BaseModel):
 class ParetoFrontierOptimizer:
     """Computes non-dominated Pareto sets across arbitrary continuous dimensions."""
 
-    def __init__(self, maximize_dimensions: Optional[List[str]] = None, minimize_dimensions: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        maximize_dimensions: list[str] | None = None,
+        minimize_dimensions: list[str] | None = None,
+    ) -> None:
         self.maximize_dims = maximize_dimensions or ["quality_score", "compression_ratio"]
         self.minimize_dims = minimize_dimensions or ["latency_p50_ms", "peak_vram_gb", "cost_usd"]
 
-    def compute_pareto_frontier(self, points: List[ParetoPoint]) -> List[ParetoPoint]:
+    def compute_pareto_frontier(self, points: list[ParetoPoint]) -> list[ParetoPoint]:
         """Identify all non-dominated points in the population."""
         if not points:
             return []
@@ -41,7 +43,7 @@ class ParetoFrontierOptimizer:
                     continue
                 # Check if point j strictly dominates point i
                 j_dominates_i = True
-                
+
                 # Check maximize dimensions (j must be >= i, and at least one strictly >)
                 for dim in self.maximize_dims:
                     val_i = getattr(points[i], dim)
@@ -64,9 +66,11 @@ class ParetoFrontierOptimizer:
                 if j_dominates_i:
                     # Verify at least one strictly better
                     strictly_better = any(
-                        getattr(points[j], dim) > getattr(points[i], dim) for dim in self.maximize_dims
+                        getattr(points[j], dim) > getattr(points[i], dim)
+                        for dim in self.maximize_dims
                     ) or any(
-                        getattr(points[j], dim) < getattr(points[i], dim) for dim in self.minimize_dims
+                        getattr(points[j], dim) < getattr(points[i], dim)
+                        for dim in self.minimize_dims
                     )
                     if strictly_better:
                         points[i].is_pareto_optimal = False

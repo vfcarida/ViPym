@@ -2,28 +2,31 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import pydantic
 
 
 class GenerationRequest(pydantic.BaseModel):
     """Prompt generation request."""
+
     prompt: str
     max_new_tokens: int = 2048
     temperature: float = 0.0
     top_p: float = 1.0
-    stop_tokens: List[str] = pydantic.Field(default_factory=list)
+    stop_tokens: list[str] = pydantic.Field(default_factory=list)
 
 
 class GenerationResponse(pydantic.BaseModel):
     """Model generation output with latency and token telemetry."""
+
     generated_text: str
     prompt_tokens: int
     completion_tokens: int
     time_to_first_token_ms: float
     inter_token_latency_ms: float
     total_time_ms: float
-    speculative_acceptance_rate: Optional[float] = None
+    speculative_acceptance_rate: float | None = None
 
 
 class InferenceBackend(ABC):

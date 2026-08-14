@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Optional
+
 from vipym.config.constants import ExperimentState
 from vipym.config.exceptions import StateTransitionError
 from vipym.core.logger import get_logger
@@ -13,15 +13,40 @@ VALID_TRANSITIONS = {
     ExperimentState.CREATED: {ExperimentState.VALIDATED, ExperimentState.FAILED},
     ExperimentState.VALIDATED: {ExperimentState.BASELINE_RUNNING, ExperimentState.FAILED},
     ExperimentState.BASELINE_RUNNING: {ExperimentState.BASELINE_COMPLETED, ExperimentState.FAILED},
-    ExperimentState.BASELINE_COMPLETED: {ExperimentState.COMPRESSION_RUNNING, ExperimentState.EVALUATION_RUNNING, ExperimentState.FAILED},
-    ExperimentState.COMPRESSION_RUNNING: {ExperimentState.COMPRESSION_COMPLETED, ExperimentState.FAILED},
-    ExperimentState.COMPRESSION_COMPLETED: {ExperimentState.INFERENCE_VALIDATED, ExperimentState.EVALUATION_RUNNING, ExperimentState.FAILED},
-    ExperimentState.INFERENCE_VALIDATED: {ExperimentState.EVALUATION_RUNNING, ExperimentState.FAILED},
-    ExperimentState.EVALUATION_RUNNING: {ExperimentState.EVALUATION_COMPLETED, ExperimentState.FAILED},
-    ExperimentState.EVALUATION_COMPLETED: {ExperimentState.ANALYSIS_COMPLETED, ExperimentState.FAILED},
+    ExperimentState.BASELINE_COMPLETED: {
+        ExperimentState.COMPRESSION_RUNNING,
+        ExperimentState.EVALUATION_RUNNING,
+        ExperimentState.FAILED,
+    },
+    ExperimentState.COMPRESSION_RUNNING: {
+        ExperimentState.COMPRESSION_COMPLETED,
+        ExperimentState.FAILED,
+    },
+    ExperimentState.COMPRESSION_COMPLETED: {
+        ExperimentState.INFERENCE_VALIDATED,
+        ExperimentState.EVALUATION_RUNNING,
+        ExperimentState.FAILED,
+    },
+    ExperimentState.INFERENCE_VALIDATED: {
+        ExperimentState.EVALUATION_RUNNING,
+        ExperimentState.FAILED,
+    },
+    ExperimentState.EVALUATION_RUNNING: {
+        ExperimentState.EVALUATION_COMPLETED,
+        ExperimentState.FAILED,
+    },
+    ExperimentState.EVALUATION_COMPLETED: {
+        ExperimentState.ANALYSIS_COMPLETED,
+        ExperimentState.FAILED,
+    },
     ExperimentState.ANALYSIS_COMPLETED: {ExperimentState.REPORT_COMPLETED, ExperimentState.FAILED},
     ExperimentState.REPORT_COMPLETED: set(),
-    ExperimentState.FAILED: {ExperimentState.VALIDATED, ExperimentState.BASELINE_RUNNING, ExperimentState.COMPRESSION_RUNNING, ExperimentState.EVALUATION_RUNNING},
+    ExperimentState.FAILED: {
+        ExperimentState.VALIDATED,
+        ExperimentState.BASELINE_RUNNING,
+        ExperimentState.COMPRESSION_RUNNING,
+        ExperimentState.EVALUATION_RUNNING,
+    },
     ExperimentState.SKIPPED: set(),
 }
 
@@ -38,15 +63,17 @@ class ExperimentStateManager:
     def load_or_init(self) -> None:
         if self.state_file_path.exists():
             try:
-                with open(self.state_file_path, "r", encoding="utf-8") as f:
+                with open(self.state_file_path, encoding="utf-8") as f:
                     data = json.load(f)
-                    self.current_state = ExperimentState(data.get("state", ExperimentState.CREATED.value))
+                    self.current_state = ExperimentState(
+                        data.get("state", ExperimentState.CREATED.value)
+                    )
             except Exception as e:
                 logger.warning(f"Could not load state file {self.state_file_path}: {e}")
         else:
             self.persist()
 
-    def transition_to(self, next_state: ExperimentState, error_message: Optional[str] = None) -> None:
+    def transition_to(self, next_state: ExperimentState, error_message: str | None = None) -> None:
         allowed = VALID_TRANSITIONS.get(self.current_state, set())
         if next_state not in allowed:
             raise StateTransitionError(
@@ -55,10 +82,12 @@ class ExperimentStateManager:
             )
         old = self.current_state
         self.current_state = next_state
-        logger.info(f"Experiment [{self.experiment_id}] state transition: [bold]{old.value}[/bold] -> [bold cyan]{next_state.value}[/bold cyan]")
+        logger.info(
+            f"Experiment [{self.experiment_id}] state transition: [bold]{old.value}[/bold] -> [bold cyan]{next_state.value}[/bold cyan]"
+        )
         self.persist(error_message)
 
-    def persist(self, error_message: Optional[str] = None) -> None:
+    def persist(self, error_message: str | None = None) -> None:
         self.state_file_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "experiment_id": self.experiment_id,

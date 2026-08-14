@@ -1,10 +1,11 @@
 """Core constants, enums, and default configuration values for ViPym."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ExperimentState(str, Enum):
+class ExperimentState(StrEnum):
     """Lifecycle states of a ViPym experiment run."""
+
     CREATED = "CREATED"
     VALIDATED = "VALIDATED"
     BASELINE_RUNNING = "BASELINE_RUNNING"
@@ -20,15 +21,17 @@ class ExperimentState(str, Enum):
     SKIPPED = "SKIPPED"
 
 
-class ComputeArchitecture(str, Enum):
+class ComputeArchitecture(StrEnum):
     """Supported model compute architectures."""
+
     DENSE = "dense"
     MOE = "moe"
     HYBRID_ATTENTION = "hybrid_attention"  # e.g., Kimi KDA + Gated MLA
 
 
-class SupportedDtype(str, Enum):
+class SupportedDtype(StrEnum):
     """Supported numerical precision formats."""
+
     FP32 = "fp32"
     FP16 = "fp16"
     BF16 = "bf16"
@@ -40,8 +43,9 @@ class SupportedDtype(str, Enum):
     INT4 = "int4"
 
 
-class CompressionMethodType(str, Enum):
+class CompressionMethodType(StrEnum):
     """Catalog of supported compression algorithm identifiers."""
+
     RTN = "rtn"
     AWQ = "awq"
     GPTQ = "gptq"
@@ -60,15 +64,17 @@ class CompressionMethodType(str, Enum):
     KV_CACHE_INT4 = "kv_cache_int4"
 
 
-class ServingBackendType(str, Enum):
+class ServingBackendType(StrEnum):
     """Supported serving runtime engines."""
+
     VLLM = "vllm"
     SGLANG = "sglang"
     HUGGINGFACE = "hf"
 
 
-class OptimizationObjective(str, Enum):
+class OptimizationObjective(StrEnum):
     """Optimization objectives for Pareto analysis."""
+
     MAXIMIZE_QUALITY = "maximize_quality"
     MINIMIZE_LATENCY = "minimize_latency"
     MINIMIZE_MEMORY = "minimize_memory"

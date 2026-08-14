@@ -3,8 +3,7 @@
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
-import torch.nn as nn
+from typing import Any
 
 from vipym.core.exceptions import InvalidPipelineDAGError
 from vipym.core.logger import get_logger
@@ -18,22 +17,22 @@ logger = get_logger(__name__)
 class PipelineNode:
     stage_id: str
     method: CompressionMethod
-    dependencies: List[str] = field(default_factory=list)
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    parameters: dict[str, Any] = field(default_factory=dict)
 
 
 class DAGCompressionPipeline(CompressionPipeline):
     """Execution engine for Directed Acyclic Graph (DAG) compression workflows."""
 
     def __init__(self) -> None:
-        self.nodes: Dict[str, PipelineNode] = {}
+        self.nodes: dict[str, PipelineNode] = {}
 
     def add_stage(
         self,
         stage_id: str,
         method: CompressionMethod,
-        dependencies: Optional[List[str]] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        dependencies: list[str] | None = None,
+        parameters: dict[str, Any] | None = None,
     ) -> "DAGCompressionPipeline":
         if stage_id in self.nodes:
             raise InvalidPipelineDAGError(f"Duplicate stage_id in pipeline: '{stage_id}'")
@@ -45,10 +44,10 @@ class DAGCompressionPipeline(CompressionPipeline):
         )
         return self
 
-    def get_topological_order(self) -> List[str]:
+    def get_topological_order(self) -> list[str]:
         """Compute valid topological execution order using Kahn's algorithm."""
-        in_degree: Dict[str, int] = {node_id: 0 for node_id in self.nodes}
-        adj: Dict[str, List[str]] = defaultdict(list)
+        in_degree: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        adj: dict[str, list[str]] = defaultdict(list)
 
         for node_id, node in self.nodes.items():
             for dep in node.dependencies:
@@ -60,7 +59,7 @@ class DAGCompressionPipeline(CompressionPipeline):
                 in_degree[node_id] += 1
 
         queue = deque([node_id for node_id, deg in in_degree.items() if deg == 0])
-        topo_order: List[str] = []
+        topo_order: list[str] = []
 
         while queue:
             curr = queue.popleft()
@@ -101,12 +100,14 @@ class DAGCompressionPipeline(CompressionPipeline):
         model = model_adapter.load_for_compression(model_id, revision=revision)
         tokenizer = model_adapter.get_tokenizer(model_id, revision=revision)
 
-        current_artifact: Optional[CompressionArtifact] = None
-        applied_methods: List[str] = []
+        current_artifact: CompressionArtifact | None = None
+        applied_methods: list[str] = []
 
         for idx, stage_id in enumerate(order):
             node = self.nodes[stage_id]
-            logger.info(f"Running compression stage [{idx+1}/{len(order)}]: '{stage_id}' ({node.method.name})")
+            logger.info(
+                f"Running compression stage [{idx + 1}/{len(order)}]: '{stage_id}' ({node.method.name})"
+            )
 
             stage_out_dir = output_dir / f"stage_{idx}_{stage_id}"
             stage_out_dir.mkdir(parents=True, exist_ok=True)

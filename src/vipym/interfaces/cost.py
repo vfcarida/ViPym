@@ -1,12 +1,13 @@
 """Interfaces for Cost Modeling."""
 
 from abc import ABC, abstractmethod
-from typing import Dict
+
 import pydantic
 
 
 class CostBreakdown(pydantic.BaseModel):
     """Traceable financial cost breakdown."""
+
     compression_cost_usd: float = 0.0
     inference_evaluation_cost_usd: float = 0.0
     storage_cost_usd: float = 0.0

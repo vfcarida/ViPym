@@ -1,10 +1,11 @@
 """HumanEval & HumanEval+ Benchmark Suite Adapter."""
 
-from typing import Any, List, Optional
+from typing import Any
+
 from vipym.core.logger import get_logger
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, TaskResult
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
+from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, TaskResult
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,7 @@ class HumanEvalSuite(EvaluationSuite):
     def version(self) -> str:
         return "v1.0.0"
 
-    def load_tasks(self, limit: Optional[int] = None) -> List[BenchmarkTask]:
+    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         # Reference canonical sample tasks
         sample_tasks = [
             BenchmarkTask(
@@ -56,7 +57,7 @@ check(separate_paren_groups)
             return sample_tasks[:limit]
         return sample_tasks
 
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Optional[Any] = None) -> str:
+    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
         return task.prompt
 
     def evaluate_response(

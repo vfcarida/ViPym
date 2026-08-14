@@ -1,12 +1,14 @@
 """Interfaces for Telemetry Collectors and Metrics."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
+
 import pydantic
 
 
 class TelemetrySnapshot(pydantic.BaseModel):
     """Runtime hardware and efficiency snapshot."""
+
     peak_gpu_memory_allocated_bytes: int = 0
     peak_gpu_memory_reserved_bytes: int = 0
     host_cpu_memory_rss_bytes: int = 0
@@ -28,5 +30,5 @@ class Metric(ABC):
         pass
 
     @abstractmethod
-    def calculate(self, data: Any) -> Dict[str, float]:
+    def calculate(self, data: Any) -> dict[str, float]:
         pass

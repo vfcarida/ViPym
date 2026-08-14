@@ -1,14 +1,15 @@
 """Microscaling (MXFP4 / MXFP8) Quantization Adapter."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -16,7 +17,9 @@ logger = get_logger(__name__)
 class MXFPCompressionMethod(CompressionMethod):
     """Microscaling format (OCP Microscaling standard MXFP4 / MXFP8)."""
 
-    def __init__(self, weight_format: str = "mxfp4", activation_format: str = "mxfp8", block_size: int = 32) -> None:
+    def __init__(
+        self, weight_format: str = "mxfp4", activation_format: str = "mxfp8", block_size: int = 32
+    ) -> None:
         self.weight_format = weight_format
         self.activation_format = activation_format
         self.block_size = block_size
@@ -45,13 +48,15 @@ class MXFPCompressionMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./mxfp_model")
         out.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Executing MXFP conversion (weights={self.weight_format}, act={self.activation_format})")
+        logger.info(
+            f"Executing MXFP conversion (weights={self.weight_format}, act={self.activation_format})"
+        )
 
         if hasattr(model, "save_pretrained"):
             model.save_pretrained(out)

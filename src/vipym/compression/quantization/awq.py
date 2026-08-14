@@ -1,14 +1,15 @@
 """Activation-Aware Weight Quantization (AWQ) adapter."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
 import torch.nn as nn
 
+from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
-from vipym.compression.registry import CompressionRegistry
 
 logger = get_logger(__name__)
 
@@ -45,8 +46,8 @@ class AWQCompressionMethod(CompressionMethod):
         self,
         model: nn.Module,
         tokenizer: Any,
-        calibration_data: Optional[Any] = None,
-        output_dir: Optional[Path] = None,
+        calibration_data: Any | None = None,
+        output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
         out = Path(output_dir or "./awq_model")
@@ -56,7 +57,8 @@ class AWQCompressionMethod(CompressionMethod):
         try:
             # Delegate to llm-compressor or AutoAWQ
             from llmcompressor.transformers import oneshot
-            recipe = f"""
+
+            recipe = """
             quant_stage:
                 quant_modifiers:
                     QuantizationModifier:
@@ -71,7 +73,9 @@ class AWQCompressionMethod(CompressionMethod):
                 output_dir=str(out),
             )
         except ImportError:
-            logger.warning("llm-compressor not available, saving model weights directly for testing.")
+            logger.warning(
+                "llm-compressor not available, saving model weights directly for testing."
+            )
             if hasattr(model, "save_pretrained"):
                 model.save_pretrained(out)
             if hasattr(tokenizer, "save_pretrained"):
@@ -84,7 +88,11 @@ class AWQCompressionMethod(CompressionMethod):
             format="compressed-tensors",
             compressed_size_bytes=total_bytes,
             applied_methods=[self.name],
-            metadata={"bits": self.bits, "group_size": self.group_size, "zero_point": self.zero_point},
+            metadata={
+                "bits": self.bits,
+                "group_size": self.group_size,
+                "zero_point": self.zero_point,
+            },
         )
 
 

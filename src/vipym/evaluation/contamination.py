@@ -1,6 +1,5 @@
 """Contamination detection and benchmark release cutoff tracking."""
 
-from typing import List, Set
 from pydantic import BaseModel
 
 
@@ -8,7 +7,7 @@ class ContaminationReport(BaseModel):
     total_tasks_checked: int
     flagged_tasks_count: int
     contamination_risk_score: float
-    flagged_task_ids: List[str]
+    flagged_task_ids: list[str]
 
 
 class ContaminationAuditor:
@@ -17,14 +16,17 @@ class ContaminationAuditor:
     def __init__(self, n_gram_size: int = 10) -> None:
         self.n_gram_size = n_gram_size
 
-    def extract_ngrams(self, text: str) -> Set[str]:
+    def extract_ngrams(self, text: str) -> set[str]:
         words = text.split()
         if len(words) < self.n_gram_size:
             return set()
-        return {" ".join(words[i : i + self.n_gram_size]) for i in range(len(words) - self.n_gram_size + 1)}
+        return {
+            " ".join(words[i : i + self.n_gram_size])
+            for i in range(len(words) - self.n_gram_size + 1)
+        }
 
-    def audit_tasks(self, tasks: List[dict], calibration_corpus: List[str]) -> ContaminationReport:
-        corpus_ngrams: Set[str] = set()
+    def audit_tasks(self, tasks: list[dict], calibration_corpus: list[str]) -> ContaminationReport:
+        corpus_ngrams: set[str] = set()
         for doc in calibration_corpus:
             corpus_ngrams.update(self.extract_ngrams(doc))
 

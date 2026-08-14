@@ -1,10 +1,11 @@
 """MBPP, LiveCodeBench, SWE-bench and Generic Benchmark Suites."""
 
-from typing import Any, List, Optional
+from typing import Any
+
 from vipym.core.logger import get_logger
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, TaskResult
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
+from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, TaskResult
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,7 @@ class MBPPSuite(EvaluationSuite):
     def version(self) -> str:
         return "v1.0.0"
 
-    def load_tasks(self, limit: Optional[int] = None) -> List[BenchmarkTask]:
+    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         sample_tasks = [
             BenchmarkTask(
                 task_id="MBPP/1",
@@ -34,7 +35,7 @@ assert min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2) == 8
         ]
         return sample_tasks[:limit] if limit else sample_tasks
 
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Optional[Any] = None) -> str:
+    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
         return task.prompt
 
     def evaluate_response(
@@ -71,7 +72,7 @@ class LiveCodeBenchSuite(EvaluationSuite):
     def version(self) -> str:
         return "v2026.08"
 
-    def load_tasks(self, limit: Optional[int] = None) -> List[BenchmarkTask]:
+    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         sample_tasks = [
             BenchmarkTask(
                 task_id="LCB/2026_01",
@@ -88,7 +89,7 @@ check()
         ]
         return sample_tasks[:limit] if limit else sample_tasks
 
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Optional[Any] = None) -> str:
+    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
         return task.prompt
 
     def evaluate_response(
@@ -97,7 +98,9 @@ check()
         generated_text: str,
         sandbox_runner: SandboxedCodeRunner,
     ) -> TaskResult:
-        res = sandbox_runner.execute_in_sandbox(f"{generated_text}\n{task.test_code}", timeout_sec=task.timeout_seconds)
+        res = sandbox_runner.execute_in_sandbox(
+            f"{generated_text}\n{task.test_code}", timeout_sec=task.timeout_seconds
+        )
         return TaskResult(
             task_id=task.task_id,
             suite=self.name,
@@ -124,7 +127,7 @@ class SWEBenchSuite(EvaluationSuite):
     def version(self) -> str:
         return "verified_v1.0"
 
-    def load_tasks(self, limit: Optional[int] = None) -> List[BenchmarkTask]:
+    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         sample_tasks = [
             BenchmarkTask(
                 task_id="django__django-11099",
@@ -135,7 +138,7 @@ class SWEBenchSuite(EvaluationSuite):
         ]
         return sample_tasks[:limit] if limit else sample_tasks
 
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Optional[Any] = None) -> str:
+    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
         return f"Issue Description:\n{task.prompt}\nProvide patch:"
 
     def evaluate_response(

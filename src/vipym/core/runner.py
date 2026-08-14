@@ -1,25 +1,20 @@
 """Central ViPym Experiment Runner and Orchestration Engine."""
 
-from pathlib import Path
 import time
-from typing import Dict, List, Optional
+from pathlib import Path
+
 import pydantic
 
-from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
-import vipym.compression
+from vipym.analysis.pareto import ParetoPoint
 from vipym.compression.pipeline import DAGCompressionPipeline
 from vipym.compression.registry import CompressionRegistry
 from vipym.core.config import ViPymExperimentConfig
 from vipym.core.constants import ExecutionStatus
 from vipym.core.logger import get_logger
 from vipym.core.manifest import ImmutableExperimentManifest
-import vipym.evaluation
 from vipym.evaluation.runner import BenchmarkRunner
-import vipym.inference
 from vipym.inference.registry import InferenceRegistry
-from vipym.metrics.collector import TelemetryCollector
 from vipym.metrics.cost import AWSTraceableCostModel
-import vipym.models
 from vipym.models.registry import ModelRegistry
 from vipym.reporting.generator import ExperimentReportGenerator
 
@@ -31,8 +26,8 @@ class ExperimentExecutionResult(pydantic.BaseModel):
     status: ExecutionStatus
     manifest_id: str
     baseline_point: ParetoPoint
-    compressed_points: List[ParetoPoint]
-    generated_report_files: Dict[str, str]
+    compressed_points: list[ParetoPoint]
+    generated_report_files: dict[str, str]
     total_duration_sec: float
     total_cost_usd: float
 
@@ -40,7 +35,9 @@ class ExperimentExecutionResult(pydantic.BaseModel):
 class ViPymRunner:
     """Orchestrates end-to-end execution of baseline, compression DAG, serving, evaluation, and reporting."""
 
-    def __init__(self, config: ViPymExperimentConfig, artifacts_dir: Path | str = "./artifacts") -> None:
+    def __init__(
+        self, config: ViPymExperimentConfig, artifacts_dir: Path | str = "./artifacts"
+    ) -> None:
         self.config = config
         self.artifacts_dir = Path(artifacts_dir) / config.experiment_id
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -59,10 +56,12 @@ class ViPymRunner:
             except Exception:
                 model_adapter = ModelRegistry.get("hf")
 
-            metadata = model_adapter.inspect_metadata(self.config.model.id, revision=self.config.model.revision)
+            metadata = model_adapter.inspect_metadata(
+                self.config.model.id, revision=self.config.model.revision
+            )
             logger.info(
-                f"Inspected Model '{metadata.model_id}': total_params={metadata.total_parameters/1e9:.1f}B, "
-                f"active_params={metadata.active_parameters/1e9:.1f}B, arch={metadata.architecture_type}"
+                f"Inspected Model '{metadata.model_id}': total_params={metadata.total_parameters / 1e9:.1f}B, "
+                f"active_params={metadata.active_parameters / 1e9:.1f}B, arch={metadata.architecture_type}"
             )
 
             # 2. Immutable Baseline Execution & Evaluation
@@ -90,7 +89,8 @@ class ViPymRunner:
             backend.stop()
 
             base_pass1 = (
-                sum(s.pass_at_1 for s in baseline_suite_results) / max(1, len(baseline_suite_results))
+                sum(s.pass_at_1 for s in baseline_suite_results)
+                / max(1, len(baseline_suite_results))
                 if baseline_suite_results
                 else 0.0
             )
