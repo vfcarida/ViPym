@@ -1,0 +1,76 @@
+# ViPym Production Recipe: DeepSeek-V3 MoE (671B / 37B Active)
+# Compression: OCP Microscaling (MXFP4) + 2:4 Semi-Structured Sparsity
+
+experiment_id: recipe-deepseek-v3-mxfp4-sparse
+seed: 42
+description: "Ultra-compact sub-byte microscaling (MXFP4) and 2:4 semi-structured sparsity pipeline for DeepSeek-V3 MoE."
+
+model:
+  id: "deepseek-ai/DeepSeek-V3"
+  revision: "main"
+  trust_remote_code: true
+  device_map: "auto"
+  torch_dtype: "bfloat16"
+
+compression_pipeline:
+  - stage_id: "stage_01_sparse_2_4"
+    method: "prune_nm"
+    scheme: "2:4_SPARSITY"
+    dependencies: []
+    parameters:
+      n: 2
+      m: 4
+      prune_n_out_of_m: true
+
+  - stage_id: "stage_02_mxfp4_quantization"
+    method: "mxfp"
+    scheme: "MXFP4"
+    dependencies: ["stage_01_sparse_2_4"]
+    parameters:
+      block_size: 32
+      elem_format: "fp4"
+
+  - stage_id: "stage_03_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_02_mxfp4_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 16
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 32.77
+  active_gpu_count: 16
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 380.0
+
+infrastructure:
+  provider: "aws_ec2"
+  instance_type: "p5.48xlarge"
+  auto_teardown: true

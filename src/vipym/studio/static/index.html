@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViPym Studio — Shrinking LLMs, Preserving Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">ViPym</span>
+                    <span class="brand-badge">Studio</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard & Runs</span>
+                </button>
+                <button class="nav-item" data-tab="pareto" id="nav-pareto">
+                    <span class="nav-icon">⚡</span>
+                    <span>Pareto Frontier</span>
+                </button>
+                <button class="nav-item" data-tab="dag-builder" id="nav-dag-builder">
+                    <span class="nav-icon">🧩</span>
+                    <span>Visual DAG Builder</span>
+                </button>
+                <button class="nav-item" data-tab="moe-inspector" id="nav-moe-inspector">
+                    <span class="nav-icon">🧠</span>
+                    <span>MoE & Architecture</span>
+                </button>
+                <button class="nav-item" data-tab="recipes" id="nav-recipes">
+                    <span class="nav-icon">📦</span>
+                    <span>Recipe Hub</span>
+                </button>
+                <button class="nav-item" data-tab="doctor" id="nav-doctor">
+                    <span class="nav-icon">🩺</span>
+                    <span>System Doctor</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status-indicator">
+                    <span class="status-pulse"></span>
+                    <span id="system-status-text">Engine Ready</span>
+                </div>
+                <span class="version-tag">v0.1.0 Beta</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="page-title-group">
+                    <h1 id="page-heading">Live Experiments & Benchmarks</h1>
+                    <p id="page-subheading">Track model compression pipelines, Pass@k retention, and cloud economics</p>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn btn-secondary" id="btn-refresh" onclick="refreshData()">
+                        <span>🔄 Refresh</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="switchTab('dag-builder')">
+                        <span>✨ New Pipeline</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="tab-content-container">
+                <!-- TAB 1: DASHBOARD -->
+                <section class="tab-pane active" id="pane-dashboard">
+                    <div class="stats-grid">
+                        <div class="stat-card glassmorphism">
+                            <span class="stat-label">Total Experiments</span>
+                            <span class="stat-value" id="stat-total-experiments">0</span>
+                            <span class="stat-desc">Stateful runs in artifacts</span>
+                        </div>
+                        <div class="stat-card glassmorphism">
+                            <span class="stat-label">Pareto Frontiers Evaluated</span>
+                            <span class="stat-value text-gradient-cyan" id="stat-pareto-points">0</span>
+                            <span class="stat-desc">Non-dominated configurations</span>
+                        </div>
+                        <div class="stat-card glassmorphism">
+                            <span class="stat-label">Active Serving Backends</span>
+                            <span class="stat-value text-gradient-purple">vLLM / SGLang</span>
+                            <span class="stat-desc">PagedAttention & Continuous Batching</span>
+                        </div>
+                        <div class="stat-card glassmorphism">
+                            <span class="stat-label">Target MoE Parameter Scale</span>
+                            <span class="stat-value text-gradient-gold">2.8T MoE</span>
+                            <span class="stat-desc">Moonshot AI Kimi K3 Architecture</span>
+                        </div>
+                    </div>
+
+                    <div class="card glassmorphism mt-6">
+                        <div class="card-header">
+                            <h2>Experiment Run Ledger</h2>
+                            <span class="badge badge-cyan">Resumable Lifecycles</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-experiments">
+                                <thead>
+                                    <tr>
+                                        <th>Experiment ID</th>
+                                        <th>State</th>
+                                        <th>Timestamp (UTC)</th>
+                                        <th>Duration</th>
+                                        <th>Est. Cloud Cost</th>
+                                        <th>Pareto Points</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-experiments">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-6 text-muted">Scanning ./artifacts directory...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: PARETO FRONTIER EXPLORER -->
+                <section class="tab-pane" id="pane-pareto">
+                    <div class="card glassmorphism">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2>Multi-Objective Pareto Frontier</h2>
+                                <p class="text-muted">Capability Retention (Pass@1) vs Hardware Memory Footprint & Compute Economics</p>
+                            </div>
+                            <div class="control-group">
+                                <label for="select-experiment-pareto">Select Experiment:</label>
+                                <select id="select-experiment-pareto" onchange="renderParetoPlot()">
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="plot-container" id="plotly-pareto-div" style="min-height: 520px;"></div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: VISUAL DAG BUILDER -->
+                <section class="tab-pane" id="pane-dag-builder">
+                    <div class="dag-builder-layout">
+                        <div class="dag-sidebar glassmorphism">
+                            <h3>Compression Stages</h3>
+                            <p class="text-muted text-sm mb-4">Click to add stages to the Directed Acyclic Graph</p>
+                            <div class="stage-palette">
+                                <button class="btn-palette" onclick="addDagStage('quarot', 'W4A16')">
+                                    <strong>QuaRot Transform</strong>
+                                    <span>Walsh-Hadamard outlier suppression</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('awq', 'W4A16')">
+                                    <strong>AWQ Quantization</strong>
+                                    <span>Activation-Aware 4-bit weights</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('gptq', 'W4A16')">
+                                    <strong>GPTQ Quantization</strong>
+                                    <span>Optimal Brain Surgeon Hessian</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('smoothquant', 'W8A8')">
+                                    <strong>SmoothQuant W8A8</strong>
+                                    <span>Per-channel outlier migration</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('prune_nm', '2:4_SPARSITY')">
+                                    <strong>2:4 Semi-Structured Sparsity</strong>
+                                    <span>NVIDIA Tensor Core 2:4 sparse</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('mxfp', 'MXFP4')">
+                                    <strong>OCP Microscaling</strong>
+                                    <span>MXFP4 / MXFP8 block float format</span>
+                                </button>
+                                <button class="btn-palette" onclick="addDagStage('kv_cache_fp8', 'FP8')">
+                                    <strong>FP8 KV-Cache</strong>
+                                    <span>1M context window memory saver</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="dag-main-canvas glassmorphism">
+                            <div class="card-header flex-between">
+                                <div>
+                                    <h2>Visual DAG Pipeline Graph</h2>
+                                    <p class="text-muted text-sm">Topological execution order computed with Kahn's algorithm</p>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-secondary" onclick="clearDag()">Reset</button>
+                                    <button class="btn btn-primary" onclick="generateYamlFromDag()">Export YAML</button>
+                                </div>
+                            </div>
+
+                            <div class="dag-nodes-container" id="dag-nodes-canvas">
+                                <!-- Dynamic DAG stages rendered here -->
+                            </div>
+
+                            <div class="mt-6">
+                                <h3>Generated ViPym YAML Specification</h3>
+                                <pre class="code-block" id="dag-yaml-output"># Add stages from the left palette to generate YAML...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: MOE & ARCHITECTURE INSPECTOR -->
+                <section class="tab-pane" id="pane-moe-inspector">
+                    <div class="card glassmorphism">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2>Mixture-of-Experts (MoE) & Model Introspector</h2>
+                                <p class="text-muted">Parameter topology, active token routing, and attention projection decomposition</p>
+                            </div>
+                            <div class="search-box">
+                                <input type="text" id="input-model-id" value="moonshotai/Kimi-K3" placeholder="Model ID or path...">
+                                <button class="btn btn-primary" onclick="inspectModel()">Inspect</button>
+                            </div>
+                        </div>
+
+                        <div class="moe-stats-grid mt-6" id="moe-details-container">
+                            <div class="stat-card glassmorphism">
+                                <span class="stat-label">Total Parameters</span>
+                                <span class="stat-value text-gradient-cyan" id="moe-total-params">2,800.0 B</span>
+                                <span class="stat-desc">Full model weight tensor volume</span>
+                            </div>
+                            <div class="stat-card glassmorphism">
+                                <span class="stat-label">Active Parameters / Token</span>
+                                <span class="stat-value text-gradient-gold" id="moe-active-params">104.0 B</span>
+                                <span class="stat-desc">Compute footprint per forward pass</span>
+                            </div>
+                            <div class="stat-card glassmorphism">
+                                <span class="stat-label">Routed Experts</span>
+                                <span class="stat-value text-gradient-purple" id="moe-routed-experts">896</span>
+                                <span class="stat-desc">16 active per token routing</span>
+                            </div>
+                            <div class="stat-card glassmorphism">
+                                <span class="stat-label">Context Window</span>
+                                <span class="stat-value text-gradient-cyan" id="moe-context-len">1,048,576</span>
+                                <span class="stat-desc">1M tokens Hybrid KDA + MLA</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-8">
+                            <h3>MoE Routing Expert Lattice Visualization</h3>
+                            <p class="text-muted text-sm mb-4">Interactive representation of routed experts ($E_1 \dots E_{896}$) and shared experts ($S_1, S_2$)</p>
+                            <div class="expert-grid-canvas" id="moe-grid-canvas">
+                                <!-- 896 interactive expert chips rendered dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: RECIPE HUB -->
+                <section class="tab-pane" id="pane-recipes">
+                    <div class="card-header flex-between mb-6">
+                        <div>
+                            <h2>ViPym Recipe Hub</h2>
+                            <p class="text-muted">Production-ready, battle-tested compression recipes for frontier LLMs</p>
+                        </div>
+                    </div>
+                    <div class="recipes-grid" id="recipes-catalog-grid">
+                        <!-- Loaded dynamically from /api/recipes -->
+                    </div>
+                </section>
+
+                <!-- TAB 6: SYSTEM DOCTOR -->
+                <section class="tab-pane" id="pane-doctor">
+                    <div class="card glassmorphism">
+                        <div class="card-header">
+                            <h2>System Health & Diagnostic Telemetry</h2>
+                            <span class="badge badge-green">Live Diagnostics</span>
+                        </div>
+                        <div class="doctor-details-grid mt-6" id="doctor-container">
+                            <div class="text-center py-6 text-muted">Running system diagnostic checks...</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+# ViPym Production Recipe: Meta LLaMA 3.3 70B Instruct
+# Compression: AWQ W4A16 Quantization + FP8 KV Cache
+
+experiment_id: recipe-llama3-3-70b-awq-w4a16
+seed: 42
+description: "Activation-Aware Weight Quantization of LLaMA 3.3 70B to W4A16 with FP8 KV cache for serving on 2x A100/H100 GPUs."
+
+model:
+  id: "meta-llama/Llama-3.3-70B-Instruct"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+  torch_dtype: "bfloat16"
+
+compression_pipeline:
+  - stage_id: "stage_01_awq_quantization"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: []
+    calibration:
+      dataset_name: "wikitext"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+  - stage_id: "stage_02_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_01_awq_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 2
+  max_model_len: 8192
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 16.29  # AWS g5.48xlarge ($16.29/hr)
+  active_gpu_count: 8
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 48.0
+
+infrastructure:
+  provider: "local"
+  auto_teardown: false

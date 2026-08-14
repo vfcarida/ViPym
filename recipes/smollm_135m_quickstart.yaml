@@ -1,0 +1,51 @@
+# ViPym Quickstart Recipe: SmolLM 135M (CPU/Local GPU Fast Benchmark)
+# Compression: AWQ W4A16 Quantization + FP8 KV Cache
+
+experiment_id: recipe-smollm-135m-quickstart
+seed: 42
+description: "Ultra-fast local smoke test & benchmark recipe using HuggingFace SmolLM 135M."
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+
+compression_pipeline:
+  - stage_id: "stage_01_awq_quant"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: []
+    calibration:
+      dataset_name: "wikitext"
+      num_samples: 16
+      sequence_length: 512
+    parameters:
+      bits: 4
+      group_size: 128
+
+serving:
+  backend: "hf"
+  tensor_parallel_size: 1
+  max_model_len: 2048
+
+evaluation:
+  suites:
+    - "humaneval"
+  task_limit: 2
+  timeout_per_task_sec: 10
+  temperature: 0.0
+  max_new_tokens: 512
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_memory"
+
+infrastructure:
+  provider: "local"

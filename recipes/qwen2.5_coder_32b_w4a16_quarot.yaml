@@ -1,0 +1,79 @@
+# ViPym Production Recipe: Qwen 2.5 Coder 32B Instruct
+# Compression: QuaRot Outlier Suppression + AutoRound W4A16 Quantization
+
+experiment_id: recipe-qwen2-5-coder-32b-w4a16-quarot
+seed: 42
+description: "High-precision 4-bit compression of Qwen2.5-Coder-32B with QuaRot rotational transform and sign-gradient AutoRound optimization."
+
+model:
+  id: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  revision: "main"
+  trust_remote_code: true
+  device_map: "auto"
+  torch_dtype: "bfloat16"
+
+compression_pipeline:
+  - stage_id: "stage_01_hadamard_rotation"
+    method: "quarot"
+    scheme: "W4A16"
+    dependencies: []
+    parameters:
+      apply_online_hadamard: true
+
+  - stage_id: "stage_02_autoround_w4a16"
+    method: "autoround"
+    scheme: "W4A16"
+    dependencies: ["stage_01_hadamard_rotation"]
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 256
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      iters: 200
+
+  - stage_id: "stage_03_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_02_autoround_w4a16"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 2
+  max_model_len: 8192
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 5.67  # AWS g5.12xlarge ($5.67/hr)
+  active_gpu_count: 4
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.75
+  max_acceptable_vram_gb: 24.0
+
+infrastructure:
+  provider: "local"
+  auto_teardown: false

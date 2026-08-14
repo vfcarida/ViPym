@@ -295,5 +295,132 @@ def inspect_model(
         )
 
 
+recipe_app = typer.Typer(
+    name="recipe",
+    help="Explore, inspect, and execute curated production compression recipes.",
+)
+app.add_typer(recipe_app, name="recipe")
+
+
+@recipe_app.command("list")
+def list_recipes_cmd() -> None:
+    """List all available curated compression recipes in the ViPym Hub."""
+    from vipym.recipes.registry import RecipeRegistry
+
+    recipes = RecipeRegistry.list_recipes()
+    table = Table(title="ViPym Curated Compression Recipe Hub", header_style="bold cyan")
+    table.add_column("Recipe ID", style="bold")
+    table.add_column("Target Model", style="magenta")
+    table.add_column("Domain", style="blue")
+    table.add_column("Ratio", style="yellow")
+    table.add_column("Quality Retention", style="green")
+    table.add_column("Hardware", style="cyan")
+
+    for r in recipes.values():
+        table.add_row(
+            r.recipe_id,
+            r.target_model_family,
+            r.domain,
+            f"{r.expected_compression_ratio:.1f}x",
+            r.expected_quality_retention,
+            r.hardware_target,
+        )
+    console.print(table)
+
+
+@recipe_app.command("info")
+def info_recipe_cmd(
+    recipe_id: str = typer.Argument(..., help="Recipe ID or name to inspect"),
+) -> None:
+    """Inspect detailed configuration and pipeline DAG for a specific recipe."""
+    from vipym.recipes.registry import RecipeRegistry
+
+    meta = RecipeRegistry.get(recipe_id)
+    cfg = RecipeRegistry.load_config(recipe_id)
+
+    console.print(f"[bold cyan]ViPym Recipe:[/bold cyan] [bold green]{meta.recipe_id}[/bold green]")
+    console.print(f"Description: {meta.description}")
+    console.print(f"Target Model: [magenta]{cfg.model.id}[/magenta]")
+    console.print(f"Expected Compression: [yellow]{meta.expected_compression_ratio:.1f}x[/yellow]")
+    console.print(f"Expected Retention: [green]{meta.expected_quality_retention}[/green]")
+    console.print(f"Hardware Instance: [cyan]{meta.hardware_target}[/cyan]")
+    console.print("\n[bold]Compression Pipeline DAG Stages:[/bold]")
+    for i, s in enumerate(cfg.compression_pipeline, 1):
+        console.print(
+            f"  {i}. [bold]{s.stage_id}[/bold] (Method: [magenta]{s.method}[/magenta], Scheme: [yellow]{s.scheme}[/yellow], Depends: {s.dependencies})"
+        )
+
+
+@recipe_app.command("run")
+def run_recipe_cmd(
+    recipe_id: str = typer.Argument(..., help="Recipe ID to run"),
+    artifacts_dir: Path = typer.Option(
+        Path("./artifacts"), "--artifacts-dir", "-a", help="Artifacts directory"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Validate and compile pipeline without executing"
+    ),
+) -> None:
+    """Execute or dry-run a curated compression recipe."""
+    from vipym.recipes.registry import RecipeRegistry
+
+    meta = RecipeRegistry.get(recipe_id)
+    cfg = RecipeRegistry.load_config(recipe_id)
+
+    console.print(
+        f"[bold green]Executing ViPym Recipe:[/bold green] [cyan]{meta.recipe_id}[/cyan] ({cfg.model.id})"
+    )
+
+    if dry_run:
+        console.print(
+            "[yellow][DRY RUN] Validated recipe DAG and configuration successfully.[/yellow]"
+        )
+        return
+
+    runner = ResumableExperimentRunner(config=cfg, artifacts_dir=artifacts_dir)
+    res = runner.run()
+    console.print(
+        f"\n[bold green][SUCCESS] Recipe [{res.experiment_id}] Completed Successfully![/bold green]"
+    )
+
+
+@app.command("studio")
+def studio_cmd(
+    port: int = typer.Option(8080, "--port", "-p", help="Port to run ViPym Studio"),
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host binding address"),
+    artifacts_dir: Path = typer.Option(
+        Path("./artifacts"), "--artifacts-dir", "-a", help="Artifacts directory"
+    ),
+    no_browser: bool = typer.Option(
+        False, "--no-browser", help="Do not open browser automatically"
+    ),
+) -> None:
+    """Launch the ViPym Studio interactive web application & REST API."""
+    import webbrowser
+
+    from vipym.studio.server import start_studio_server
+
+    url = f"http://{host}:{port}"
+    console.print(
+        f"[bold green]Starting ViPym Studio[/bold green] at: [bold cyan]{url}[/bold cyan]"
+    )
+    console.print(f"Artifacts workspace: [magenta]{artifacts_dir.resolve()}[/magenta]")
+    console.print("Press [bold red]Ctrl+C[/bold red] to stop server.\n")
+
+    server = start_studio_server(host=host, port=port, artifacts_dir=artifacts_dir)
+
+    if not no_browser and host in ["127.0.0.1", "localhost"]:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutting down ViPym Studio server...[/yellow]")
+        server.server_close()
+
+
 if __name__ == "__main__":
     app()
