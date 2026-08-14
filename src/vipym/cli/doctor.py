@@ -25,7 +25,7 @@ def run_doctor_checks() -> bool:
     py_ok = sys.version_info >= (3, 11)
     table.add_row(
         "Python (>= 3.11)",
-        "✓ OK" if py_ok else "✗ FAIL",
+        "[OK]" if py_ok else "[FAIL]",
         f"v{py_ver} ({platform.python_implementation()})",
     )
     if not py_ok:
@@ -39,32 +39,32 @@ def run_doctor_checks() -> bool:
         cuda_ver = torch.version.cuda or "N/A"
         gpu_count = torch.cuda.device_count() if cuda_avail else 0
         details = f"PyTorch {torch.__version__}, CUDA: {cuda_ver}, GPUs: {gpu_count}"
-        table.add_row("PyTorch & CUDA", "✓ OK" if cuda_avail else "⚠ WARN", details)
+        table.add_row("PyTorch & CUDA", "[OK]" if cuda_avail else "[WARN]", details)
     except ImportError:
-        table.add_row("PyTorch & CUDA", "⚠ WARN", "PyTorch not installed (CPU fallback mode)")
+        table.add_row("PyTorch & CUDA", "[WARN]", "PyTorch not installed (CPU fallback mode)")
 
     # 3. Serving Runtime (vLLM / SGLang)
     try:
         import vllm
 
-        table.add_row("vLLM Engine", "✓ OK", f"v{vllm.__version__}")
+        table.add_row("vLLM Engine", "[OK]", f"v{vllm.__version__}")
     except ImportError:
-        table.add_row("vLLM Engine", "⚠ WARN", "vLLM not installed (mock serving fallback)")
+        table.add_row("vLLM Engine", "[WARN]", "vLLM not installed (mock serving fallback)")
 
     # 4. Compression Backend (llm-compressor)
     import importlib.util
 
     if importlib.util.find_spec("llmcompressor") is not None:
-        table.add_row("LLM-Compressor", "✓ OK", "Available")
+        table.add_row("LLM-Compressor", "[OK]", "Available")
     else:
-        table.add_row("LLM-Compressor", "⚠ WARN", "llm-compressor not installed (mock compression)")
+        table.add_row("LLM-Compressor", "[WARN]", "llm-compressor not installed (mock compression)")
 
     # 5. Docker / Sandboxing
     docker_bin = shutil.which("docker")
     docker_ok = docker_bin is not None
     table.add_row(
         "Docker Sandbox",
-        "✓ OK" if docker_ok else "⚠ WARN",
+        "[OK]" if docker_ok else "[WARN]",
         f"Binary: {docker_bin or 'Not Found (Subprocess fallback)'}",
     )
 
@@ -73,14 +73,14 @@ def run_doctor_checks() -> bool:
     free_gb = free / (1024**3)
     disk_ok = free_gb > 10.0
     table.add_row(
-        "Disk Space", "✓ OK" if disk_ok else "⚠ WARN", f"{free_gb:.1f} GB free on working drive"
+        "Disk Space", "[OK]" if disk_ok else "[WARN]", f"{free_gb:.1f} GB free on working drive"
     )
 
     # 7. AWS Credentials Check
     aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
     table.add_row(
         "AWS Credentials",
-        "✓ OK" if aws_key else "ℹ INFO",
+        "[OK]" if aws_key else "[INFO]",
         "Found in env" if aws_key else "Not configured (Local execution mode)",
     )
 
@@ -88,7 +88,7 @@ def run_doctor_checks() -> bool:
     hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     table.add_row(
         "Hugging Face Auth",
-        "✓ OK" if hf_token else "ℹ INFO",
+        "[OK]" if hf_token else "[INFO]",
         "Token present" if hf_token else "No token (Public models only)",
     )
 

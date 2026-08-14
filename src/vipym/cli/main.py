@@ -54,13 +54,13 @@ def validate_config(
     try:
         cfg = ViPymExperimentConfig.from_yaml(config_path)
         console.print(
-            f"[bold green]✓ Configuration is valid:[/bold green] [cyan]{cfg.experiment_id}[/cyan]"
+            f"[bold green][VALID] Configuration is valid:[/bold green] [cyan]{cfg.experiment_id}[/cyan]"
         )
         console.print(f"Model: [magenta]{cfg.model.id}[/magenta]")
         console.print(f"Stages: [yellow]{len(cfg.compression_pipeline)}[/yellow]")
         console.print(f"Suites: [blue]{cfg.evaluation.suites}[/blue]")
     except Exception as e:
-        console.print(f"[bold red]✗ Configuration Error:[/bold red] {e}")
+        console.print(f"[bold red][ERROR] Configuration Error:[/bold red] {e}")
         raise typer.Exit(code=1) from e
 
 
@@ -82,7 +82,7 @@ def run_experiment(
     runner = ResumableExperimentRunner(config=cfg, artifacts_dir=artifacts_dir)
     res = runner.run(resume=not no_resume)
     console.print(
-        f"\n[bold green]✓ Experiment [{res.experiment_id}] Completed Successfully![/bold green]"
+        f"\n[bold green][SUCCESS] Experiment [{res.experiment_id}] Completed Successfully![/bold green]"
     )
     console.print(f"Manifest ID: [cyan]{res.manifest_id}[/cyan]")
     console.print(f"Total Duration: [yellow]{res.total_duration_sec:.2f}s[/yellow]")
@@ -132,7 +132,7 @@ def compress_cmd(
     tokenizer = adapter.get_tokenizer(model_id)
     art = compressor.compress(model, tokenizer, output_dir=output_dir)
     console.print(
-        f"[bold green]✓ Compression completed:[/bold green] format={art.format}, size={art.compressed_size_bytes} bytes"
+        f"[bold green][SUCCESS] Compression completed:[/bold green] format={art.format}, size={art.compressed_size_bytes} bytes"
     )
 
 
