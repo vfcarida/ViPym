@@ -3,7 +3,7 @@
 # ⚡ ViPym
 ### *Shrinking LLMs, Preserving Intelligence*
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![vLLM](https://img.shields.io/badge/Serving-vLLM%20%7C%20SGLang-00D4B2?style=for-the-badge)](https://github.com/vllm-project/vllm)
@@ -364,7 +364,7 @@ Every experiment run automatically compiles a comprehensive artifact package ins
 
 ## 📄 License & Citation
 
-ViPym is licensed under the **[Apache 2.0 License](https://opensource.org/licenses/Apache-2.0)**.
+ViPym is licensed under the **[MIT License](LICENSE)**.
 
 ```bibtex
 @software{vipym2026,

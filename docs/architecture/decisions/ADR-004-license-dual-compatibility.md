@@ -1,16 +1,15 @@
-# ADR-004: Open-Source Licensing Compatibility Assessment (Apache-2.0 & MIT)
+# ADR-004: Open-Source Licensing Standardization (MIT License)
 
 ## Status
-Accepted / Documented
+Accepted / Enacted
 
 ## Context
-The repository was initialized with an `Apache-2.0` `LICENSE` file and `pyproject.toml` metadata specifying `Apache-2.0`. The prompt context mentions `PRIVATE_REPOSITORY: No. MIT license`.
+The project was harmonized to standardize definitively on the **MIT License** across `LICENSE`, `pyproject.toml`, `src/vipym/__version__.py`, and `README.md`.
 
 ## Analysis & Assessment
 - Both **Apache-2.0** and **MIT** are permissive, OSI-approved open-source licenses granting broad rights for commercial use, modification, distribution, and sublicensing.
-- **Apache-2.0** includes explicit patent grant and termination provisions, which are standard for modern enterprise-grade ML frameworks (e.g. PyTorch, vLLM, Apache TVM).
-- **MIT** offers maximum simplicity with minimal restrictions.
-- Inbound dependencies (PyTorch, Transformers, vLLM, Typer, Pydantic) are permissively licensed (BSD, Apache-2.0, MIT) and fully compatible with both licenses.
+- **MIT** offers maximum simplicity, lightweight integration, and zero friction for adoption across academic research and enterprise engineering.
+- Inbound dependencies (PyTorch, Transformers, vLLM, Typer, Pydantic) are permissively licensed (BSD, Apache-2.0, MIT) and 100% compatible with MIT distribution.
 
 ## Decision
-Retain Apache-2.0 in `LICENSE` and `pyproject.toml` while ensuring all first-party code remains clean, permissive, and dual-compatible with MIT terms without proprietary patent encumbrances.
+Adopt and standardize the **MIT License** across all first-party repository artifacts, package metadata, and documentation.
