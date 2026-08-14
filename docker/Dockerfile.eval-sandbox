@@ -1,0 +1,13 @@
+# Hardened Sandbox Container for Untrusted LLM Code Execution
+FROM python:3.11-slim
+
+# Create unprivileged sandbox user
+RUN useradd -m -s /bin/bash sandboxuser
+
+# Security: Remove network utilities and set permissions
+RUN rm -rf /usr/bin/curl /usr/bin/wget /usr/bin/nc /usr/bin/telnet
+
+USER sandboxuser
+WORKDIR /tmp/sandbox
+
+CMD ["python", "-c", "print('Sandbox Ready')"]

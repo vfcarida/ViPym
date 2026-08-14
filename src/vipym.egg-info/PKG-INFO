@@ -1,3 +1,59 @@
+Metadata-Version: 2.4
+Name: vipym
+Version: 0.1.0
+Summary: ViPym: Shrinking LLMs, Preserving Intelligence — Modular, reproducible LLM compression benchmarking and evaluation framework
+Author: ViPym Contributors
+License: Apache-2.0
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.7.0
+Requires-Dist: pydantic-settings>=2.2.0
+Requires-Dist: typer[all]>=0.12.0
+Requires-Dist: rich>=13.7.0
+Requires-Dist: pyyaml>=6.0.1
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: scipy>=1.12.0
+Requires-Dist: pandas>=2.2.0
+Requires-Dist: polars>=0.20.0
+Requires-Dist: plotly>=5.20.0
+Requires-Dist: matplotlib>=3.8.0
+Requires-Dist: seaborn>=0.13.0
+Requires-Dist: jinja2>=3.1.3
+Requires-Dist: boto3>=1.34.0
+Requires-Dist: docker>=7.0.0
+Provides-Extra: torch
+Requires-Dist: torch>=2.4.0; extra == "torch"
+Requires-Dist: transformers>=4.44.0; extra == "torch"
+Requires-Dist: accelerate>=0.33.0; extra == "torch"
+Requires-Dist: safetensors>=0.4.3; extra == "torch"
+Provides-Extra: compression
+Requires-Dist: torch>=2.4.0; extra == "compression"
+Requires-Dist: transformers>=4.44.0; extra == "compression"
+Requires-Dist: accelerate>=0.33.0; extra == "compression"
+Requires-Dist: safetensors>=0.4.3; extra == "compression"
+Requires-Dist: llm-compressor>=0.1.0; extra == "compression"
+Provides-Extra: serving
+Requires-Dist: vllm>=0.5.4; extra == "serving"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.12.0; extra == "dev"
+Requires-Dist: ruff>=0.4.0; extra == "dev"
+Requires-Dist: mypy>=1.9.0; extra == "dev"
+Requires-Dist: types-pyyaml>=6.0.12; extra == "dev"
+Requires-Dist: types-boto3>=1.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: vipym[compression,dev,serving,torch]; extra == "all"
+
 # ViPym — Shrinking LLMs, Preserving Intelligence
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

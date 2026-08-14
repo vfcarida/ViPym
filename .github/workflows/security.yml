@@ -1,0 +1,30 @@
+name: Security & Container Scan
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly on Sunday
+  pull_request:
+    paths:
+      - "src/**"
+      - "docker/**"
+      - "pyproject.toml"
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit & Pip-Audit
+        run: pip install bandit pip-audit
+
+      - name: Run Bandit SAST Security Scan
+        run: bandit -r src/ -ll
+
+      - name: Run Pip Audit
+        run: pip-audit || true

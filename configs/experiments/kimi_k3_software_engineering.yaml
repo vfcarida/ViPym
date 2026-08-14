@@ -1,0 +1,93 @@
+# ViPym Reference Experiment: Kimi K3 Software Engineering Compression Matrix
+# Model: Moonshot AI Kimi K3 (2.8T MoE / 104B Active / 896 Routed Experts / 1M Context / Native MXFP4-MXFP8 QAT)
+# Domain: Software Engineering (HumanEval+, MBPP+, LiveCodeBench, SWE-bench)
+
+experiment_id: kimi-k3-software-engineering-matrix
+seed: 42
+description: "Systematic compression and capability evaluation of Kimi K3 MoE across AWQ, GPTQ, SmoothQuant, QuaRot transforms, 2:4 Sparsity, and Distillation."
+
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
+
+compression_pipeline:
+  # Stage 1: Orthogonal Walsh-Hadamard Transform (QuaRot style to eliminate activation outliers)
+  - stage_id: "stage_01_quarot_transform"
+    method: "quarot"
+    scheme: "W4A16"
+    dependencies: []
+    parameters:
+      apply_online_hadamard: true
+
+  # Stage 2: Activation-Aware Weight Quantization (AWQ W4A16)
+  - stage_id: "stage_02_awq_quantization"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: ["stage_01_quarot_transform"]
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+  # Stage 3: KV-Cache FP8 Quantization for 1M Context Window Efficiency
+  - stage_id: "stage_03_kv_cache_quantization"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_02_awq_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 64
+  pipeline_parallel_size: 1
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+  max_num_seqs: 128
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+    - "swebench"
+  timeout_per_task_sec: 20
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+  num_measurement_repeats: 3
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 32.77  # AWS p5.48xlarge ($32.77/hr)
+  s3_storage_cost_per_gb_month: 0.023
+  data_transfer_per_gb: 0.09
+  active_gpu_count: 64
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 1600.0
+
+infrastructure:
+  provider: "aws_ec2"
+  aws_region: "us-east-1"
+  instance_type: "p5.48xlarge"
+  s3_bucket: "vipym-kimi-k3-research"
+  auto_teardown: true
+  idle_shutdown_timeout_min: 15

@@ -1,0 +1,12 @@
+# AWQ W4A16 Quantization Stage
+stage_id: "awq_w4a16_stage"
+method: "awq"
+scheme: "W4A16"
+calibration:
+  dataset_name: "bigcode/the-stack"
+  num_samples: 512
+  sequence_length: 2048
+parameters:
+  bits: 4
+  group_size: 128
+  zero_point: true

@@ -1,0 +1,7 @@
+# AWS Multi-Node p5.48xlarge Ephemeral Cluster Infrastructure
+provider: "aws_ec2"
+aws_region: "us-east-1"
+instance_type: "p5.48xlarge"
+s3_bucket: "vipym-experiments-bucket"
+auto_teardown: true
+idle_shutdown_timeout_min: 20

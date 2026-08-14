@@ -1,0 +1,41 @@
+experiment_id: smoke-test-local-001
+seed: 42
+description: "Lightweight CPU/GPU local smoke test with 1-sample HumanEval"
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+
+compression_pipeline:
+  - stage_id: "smoke_rtn_quant"
+    method: "awq"
+    scheme: "W4A16"
+    parameters:
+      bits: 4
+      group_size: 128
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  max_model_len: 1024
+  gpu_memory_utilization: 0.80
+
+evaluation:
+  suites:
+    - "humaneval"
+  timeout_per_task_sec: 5
+  temperature: 0.0
+  max_new_tokens: 128
+  task_limit: 1
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+  s3_storage_cost_per_gb_month: 0.0
+  data_transfer_per_gb: 0.0
+  active_gpu_count: 1
+
+infrastructure:
+  provider: "local"
+  auto_teardown: false

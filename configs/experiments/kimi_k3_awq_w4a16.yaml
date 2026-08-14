@@ -1,0 +1,55 @@
+experiment_id: kimi-k3-awq-w4a16
+seed: 42
+description: "Kimi K3 2.8T MoE AWQ W4A16 Quantization on Coding Benchmarks"
+
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
+
+compression_pipeline:
+  - stage_id: "awq_w4a16"
+    method: "awq"
+    scheme: "W4A16"
+    calibration:
+      dataset_name: "code_search_net"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 64
+  pipeline_parallel_size: 1
+  max_model_len: 8192
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 32.77
+  s3_storage_cost_per_gb_month: 0.023
+  data_transfer_per_gb: 0.09
+  active_gpu_count: 64
+
+infrastructure:
+  provider: "aws_ec2"
+  aws_region: "us-east-1"
+  instance_type: "p5.48xlarge"
+  s3_bucket: "vipym-kimi-k3-experiments"
+  auto_teardown: true

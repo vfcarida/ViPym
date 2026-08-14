@@ -1,0 +1,7 @@
+# Model configuration for Moonshot AI Kimi K3 (2.8T MoE)
+id: "moonshotai/Kimi-K3"
+revision: "main"
+trust_remote_code: true
+custom_adapter_cls: "kimi_k3"
+device_map: "auto"
+torch_dtype: "bfloat16"

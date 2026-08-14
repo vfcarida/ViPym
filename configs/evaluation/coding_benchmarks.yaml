@@ -1,0 +1,13 @@
+# Coding benchmarks evaluation configuration
+suites:
+  - "humaneval"
+  - "mbpp"
+  - "livecodebench"
+  - "swebench"
+timeout_per_task_sec: 15
+temperature: 0.0
+top_p: 1.0
+max_new_tokens: 2048
+pass_k_values: [1]
+isolate_with_gvisor: true
+num_measurement_repeats: 3

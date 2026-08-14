@@ -1,0 +1,28 @@
+# Base image with CUDA 12.4 and Python 3.11
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3-pip \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python
+RUN python -m pip install --upgrade pip setuptools wheel
+
+WORKDIR /workspace/vipym
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+RUN pip install -e ".[all]"
+
+ENTRYPOINT ["vipym"]
+CMD ["--help"]

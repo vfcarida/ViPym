@@ -1,0 +1,33 @@
+name: GPU Integration Test Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: "Hugging Face Model ID or path"
+        required: true
+        default: "Qwen/Qwen2.5-Coder-0.5B"
+      compression_method:
+        description: "Compression method to evaluate"
+        required: true
+        default: "awq"
+
+jobs:
+  gpu-benchmark:
+    runs-on: [self-hosted, linux, x64, gpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[all]"
+
+      - name: Run GPU Compression & Benchmark
+        run: |
+          vipym doctor
+          vipym compress --model ${{ github.event.inputs.model_id }} --method ${{ github.event.inputs.compression_method }} -o ./gpu_artifacts
+          vipym evaluate --model ./gpu_artifacts --suite humaneval

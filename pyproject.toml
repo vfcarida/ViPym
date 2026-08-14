@@ -1,0 +1,107 @@
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vipym"
+version = "0.1.0"
+description = "ViPym: Shrinking LLMs, Preserving Intelligence — Modular, reproducible LLM compression benchmarking and evaluation framework"
+readme = "README.md"
+authors = [{ name = "ViPym Contributors" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "typer[all]>=0.12.0",
+    "rich>=13.7.0",
+    "pyyaml>=6.0.1",
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+    "pandas>=2.2.0",
+    "polars>=0.20.0",
+    "plotly>=5.20.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "jinja2>=3.1.3",
+    "boto3>=1.34.0",
+    "docker>=7.0.0",
+]
+
+[project.optional-dependencies]
+torch = [
+    "torch>=2.4.0",
+    "transformers>=4.44.0",
+    "accelerate>=0.33.0",
+    "safetensors>=0.4.3",
+]
+compression = [
+    "torch>=2.4.0",
+    "transformers>=4.44.0",
+    "accelerate>=0.33.0",
+    "safetensors>=0.4.3",
+    "llm-compressor>=0.1.0",
+]
+serving = [
+    "vllm>=0.5.4",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+    "types-pyyaml>=6.0.12",
+    "types-boto3>=1.0.0",
+]
+all = [
+    "vipym[torch,compression,serving,dev]",
+]
+
+[project.scripts]
+vipym = "vipym.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "contract: Plugin contract tests",
+    "smoke: End-to-end smoke tests (small mock model)",
+    "integration: Integration tests requiring PyTorch or Docker",
+    "slow: Tests that take > 10 seconds",
+]
