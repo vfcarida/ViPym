@@ -1,0 +1,55 @@
+# ViPym FP8 Baseline Recipe: SmolLM 135M Near-Lossless Baseline (Static FP8 E4M3/E5M2)
+# Compression: 2x Memory Reduction with <0.2% degradation, native vLLM loading
+
+experiment_id: recipe-smollm-135m-fp8-baseline
+seed: 42
+description: "Near-lossless baseline FP8 quantization (E4M3 weights, E5M2 activations) on SmolLM 135M."
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+
+compression_pipeline:
+  - stage_id: "fp8_baseline"
+    method: "fp8"
+    scheme: "FP8"
+    dependencies: []
+    calibration:
+      dataset_name: "wikitext"
+      dataset_config: "wikitext-2-raw-v1"
+      split: "train"
+      num_samples: 512
+      sequence_length: 512
+    parameters:
+      mode: "static"
+      weight_dtype: "fp8_e4m3"
+      activation_dtype: "fp8_e5m2"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  max_model_len: 2048
+  kv_cache_dtype: "fp8"
+
+evaluation:
+  suites:
+    - "humaneval"
+  task_limit: 2
+  timeout_per_task_sec: 10
+  temperature: 0.0
+  max_new_tokens: 512
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_memory"
+
+infrastructure:
+  provider: "local"
