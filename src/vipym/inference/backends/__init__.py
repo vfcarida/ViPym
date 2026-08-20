@@ -1,17 +1,11 @@
-"""Production Serving and Inference Backends."""
+"""Serving Backends Package for vLLM, SGLang, and HuggingFace."""
 
 from vipym.inference.backends.base import BaseInferenceBackend, auto_detect_quantization
 from vipym.inference.backends.sglang_backend import SGLangBackend
 from vipym.inference.backends.vllm_backend import VLLMBackend
-from vipym.inference.batch import BatchInferenceRunner
-from vipym.inference.hf_engine import HuggingFaceInferenceBackend
-from vipym.inference.registry import InferenceRegistry
 
 __all__ = [
     "BaseInferenceBackend",
-    "BatchInferenceRunner",
-    "HuggingFaceInferenceBackend",
-    "InferenceRegistry",
     "SGLangBackend",
     "VLLMBackend",
     "auto_detect_quantization",

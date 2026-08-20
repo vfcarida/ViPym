@@ -1,5 +1,9 @@
 """Dynamic Inference Backend Registry."""
 
+from __future__ import annotations
+
+from typing import Any, Callable
+
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.interfaces.inference import InferenceBackend
 
@@ -7,10 +11,10 @@ from vipym.interfaces.inference import InferenceBackend
 class InferenceRegistry:
     """Registry for discovering and instantiating Inference Backends."""
 
-    _registry: dict[str, type[InferenceBackend]] = {}
+    _registry: dict[str, Any] = {}
 
     @classmethod
-    def register(cls, name: str, backend_cls: type[InferenceBackend]) -> None:
+    def register(cls, name: str, backend_cls: Any) -> None:
         cls._registry[name.lower()] = backend_cls
 
     @classmethod
@@ -21,8 +25,26 @@ class InferenceRegistry:
                 f"Inference backend '{name}' not found in registry. "
                 f"Available backends: {list(cls._registry.keys())}"
             )
-        return cls._registry[key]()
+        entry = cls._registry[key]
+        if isinstance(entry, InferenceBackend):
+            return entry
+        if callable(entry):
+            return entry()
+        raise InferenceRuntimeError(f"Registry entry for '{name}' is not callable or an instance.")
 
     @classmethod
-    def list_backends(cls) -> dict[str, type[InferenceBackend]]:
+    def get_class(cls, name: str) -> type[InferenceBackend]:
+        key = name.lower()
+        if key not in cls._registry:
+            raise InferenceRuntimeError(
+                f"Inference backend '{name}' not found in registry. "
+                f"Available backends: {list(cls._registry.keys())}"
+            )
+        entry = cls._registry[key]
+        if isinstance(entry, type):
+            return entry
+        return type(entry)
+
+    @classmethod
+    def list_backends(cls) -> dict[str, Any]:
         return dict(cls._registry)

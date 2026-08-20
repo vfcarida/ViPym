@@ -131,4 +131,4 @@ class SGLangInferenceBackend(InferenceBackend):
 
 InferenceRegistry.register("hf", HuggingFaceInferenceBackend)
 InferenceRegistry.register("huggingface", HuggingFaceInferenceBackend)
-InferenceRegistry.register("sglang", SGLangInferenceBackend)
+InferenceRegistry.register("sglang_legacy", SGLangInferenceBackend)
