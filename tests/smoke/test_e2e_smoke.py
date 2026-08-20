@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from vipym.core.config import (
+from vipym.config import (
     CostAssumptionConfig,
     EvaluationConfig,
     ModelConfig,

@@ -1,6 +1,6 @@
 """Traceable AWS Cloud Cost Model."""
 
-from vipym.core.config import CostAssumptionConfig
+from vipym.config.schema import CostAssumptionConfig
 from vipym.interfaces.cost import CostBreakdown, CostModel
 
 

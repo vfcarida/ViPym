@@ -1,7 +1,7 @@
 """Unit tests for Pareto Frontier and Cost modeling."""
 
 from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
-from vipym.core.config import CostAssumptionConfig
+from vipym.config import CostAssumptionConfig
 from vipym.metrics.cost import AWSTraceableCostModel
 
 

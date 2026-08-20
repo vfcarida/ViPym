@@ -10,6 +10,7 @@ from vipym.analysis.pareto import ParetoPoint
 from vipym.compression.registry import CompressionRegistry
 from vipym.config.constants import ExperimentState
 from vipym.config.schema import ViPymExperimentConfig
+from vipym.core.constants import ExecutionStatus
 from vipym.core.logger import get_logger
 from vipym.cost.calculator import CloudCostCalculator
 from vipym.evaluation.runner import BenchmarkRunner
@@ -35,27 +36,51 @@ class ExperimentRunSummary(pydantic.BaseModel):
     total_duration_sec: float
     total_cost_usd: float
 
+    @property
+    def status(self) -> ExecutionStatus:
+        """Compatibility property for ExecutionStatus."""
+        if self.final_state in (ExperimentState.REPORT_COMPLETED, ExperimentState.ANALYSIS_COMPLETED):
+            return ExecutionStatus.COMPLETED
+        elif self.final_state == ExperimentState.FAILED:
+            return ExecutionStatus.FAILED
+        return ExecutionStatus.RUNNING
+
 
 class ResumableExperimentRunner:
     """Orchestrates end-to-end experiment execution with full checkpointing and resumability."""
 
     def __init__(
-        self, config: ViPymExperimentConfig, artifacts_dir: Path | str = "./artifacts"
+        self,
+        config: ViPymExperimentConfig,
+        artifacts_dir: Path | str = "./artifacts",
+        checkpoint_enabled: bool = True,
     ) -> None:
         self.config = config
         self.exp_dir = Path(artifacts_dir) / config.experiment_id
         self.exp_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_enabled = checkpoint_enabled
 
-        self.state_mgr = ExperimentStateManager(config.experiment_id, self.exp_dir / "state.json")
+        self.state_mgr = ExperimentStateManager(
+            config.experiment_id,
+            self.exp_dir / "state.json",
+            persist_to_disk=checkpoint_enabled,
+        )
         self.checkpoint_mgr = CheckpointManager(self.exp_dir / "checkpoint.json")
-        self.checkpoint: ExperimentCheckpoint = self.checkpoint_mgr.load(config.experiment_id)
+        if checkpoint_enabled:
+            self.checkpoint: ExperimentCheckpoint = self.checkpoint_mgr.load(config.experiment_id)
+        else:
+            self.checkpoint = ExperimentCheckpoint(experiment_id=config.experiment_id)
+
         self.manifest = ReproducibilityManifest.create(config)
         self.cost_calculator = CloudCostCalculator(config.cost_assumptions)
 
     def run(self, resume: bool = True) -> ExperimentRunSummary:
+        if not self.checkpoint_enabled:
+            resume = False
+
         start_time = time.perf_counter()
         logger.info(
-            f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume})"
+            f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume}, checkpoint={self.checkpoint_enabled})"
         )
 
         try:
@@ -118,7 +143,8 @@ class ResumableExperimentRunner:
                     "pass_at_1": base_pass1,
                     "suites": [s.model_dump() for s in baseline_suite_results],
                 }
-                self.checkpoint_mgr.save(self.checkpoint)
+                if self.checkpoint_enabled:
+                    self.checkpoint_mgr.save(self.checkpoint)
                 self.state_mgr.transition_to(ExperimentState.BASELINE_COMPLETED)
             else:
                 logger.info("✓ Skipping Baseline Stage (Already completed in checkpoint)")
@@ -161,7 +187,8 @@ class ResumableExperimentRunner:
 
                     self.checkpoint.compressed_artifact_path = str(compressed_artifact.output_path)
                     self.checkpoint.compressed_methods_applied = compressed_artifact.applied_methods
-                    self.checkpoint_mgr.save(self.checkpoint)
+                    if self.checkpoint_enabled:
+                        self.checkpoint_mgr.save(self.checkpoint)
                     self.state_mgr.transition_to(ExperimentState.COMPRESSION_COMPLETED)
                 else:
                     logger.info("✓ Skipping Compression Stage (Artifact loaded from checkpoint)")
@@ -223,7 +250,8 @@ class ResumableExperimentRunner:
 
                     self.checkpoint.evaluation_completed = True
                     self.checkpoint.pareto_points = [compressed_point.model_dump()]
-                    self.checkpoint_mgr.save(self.checkpoint)
+                    if self.checkpoint_enabled:
+                        self.checkpoint_mgr.save(self.checkpoint)
                     self.state_mgr.transition_to(ExperimentState.EVALUATION_COMPLETED)
                 else:
                     logger.info("✓ Skipping Evaluation Stage (Loaded from checkpoint)")
@@ -277,6 +305,10 @@ class ResumableExperimentRunner:
             self.manifest.duration_seconds = total_duration
             self.manifest.total_cost_usd = cost_breakdown.total_cost_usd
             self.manifest.artifacts = {k: str(v) for k, v in generated_files.items()}
+            self.manifest.summary_metrics = {
+                "baseline_pass_at_1": baseline_point.quality_score,
+                "compressed_count": len(compressed_points),
+            }
             self.manifest.save(self.exp_dir / "manifest.json")
 
             self.state_mgr.transition_to(ExperimentState.REPORT_COMPLETED)

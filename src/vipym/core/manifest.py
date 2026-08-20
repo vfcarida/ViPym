@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from vipym.__version__ import __version__ as VIPYM_VERSION
-from vipym.core.config import ViPymExperimentConfig
+from vipym.config.schema import ViPymExperimentConfig
 from vipym.core.constants import ExecutionStatus
 
 
