@@ -126,10 +126,10 @@ class ServingConfig(BaseModel):
 class EvaluationConfig(BaseModel):
     """Evaluation suite configuration."""
 
-    suites: list[str] = Field(
+    suites: list[str | dict[str, Any]] = Field(
         default_factory=lambda: ["humaneval"],
         min_length=1,
-        description="List of benchmark suite names",
+        description="List of benchmark suite names or suite configuration dicts",
     )
     timeout_per_task_sec: int = Field(
         default=15, ge=1, description="Per-task execution timeout in sandbox"

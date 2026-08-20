@@ -1,5 +1,6 @@
 """Evaluation package with auto-registration."""
 
+from vipym.evaluation import agents as agents
 from vipym.evaluation import suites as suites
 from vipym.evaluation.contamination import ContaminationAuditor, ContaminationReport
 from vipym.evaluation.registry import EvaluationRegistry
@@ -10,5 +11,6 @@ __all__ = [
     "ContaminationAuditor",
     "ContaminationReport",
     "EvaluationRegistry",
+    "agents",
     "suites",
 ]

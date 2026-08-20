@@ -116,51 +116,6 @@ check()
         )
 
 
-class SWEBenchSuite(EvaluationSuite):
-    """SWE-bench (Software Engineering Repository Issue Resolution) Adapter."""
-
-    @property
-    def name(self) -> str:
-        return "swebench"
-
-    @property
-    def version(self) -> str:
-        return "verified_v1.0"
-
-    def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
-        sample_tasks = [
-            BenchmarkTask(
-                task_id="django__django-11099",
-                suite="swebench",
-                prompt="Fix ASCII username validator regex in Django auth module",
-                test_code="assert True",
-            )
-        ]
-        return sample_tasks[:limit] if limit else sample_tasks
-
-    def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
-        return f"Issue Description:\n{task.prompt}\nProvide patch:"
-
-    def evaluate_response(
-        self,
-        task: BenchmarkTask,
-        generated_text: str,
-        sandbox_runner: SandboxedCodeRunner,
-    ) -> TaskResult:
-        return TaskResult(
-            task_id=task.task_id,
-            suite=self.name,
-            prompt=task.prompt,
-            generated_solution=generated_text,
-            passed=True,
-            compile_success=True,
-            unit_tests_passed=1,
-            unit_tests_total=1,
-            execution_time_ms=1200.0,
-        )
-
-
 EvaluationRegistry.register("mbpp", MBPPSuite)
 EvaluationRegistry.register("mbpp_plus", MBPPSuite)
 EvaluationRegistry.register("livecodebench", LiveCodeBenchSuite)
-EvaluationRegistry.register("swebench", SWEBenchSuite)

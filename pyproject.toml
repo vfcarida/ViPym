@@ -67,8 +67,12 @@ dev = [
     "types-pyyaml>=6.0.12",
     "types-boto3>=1.0.0",
 ]
+eval = [
+    "swebench>=2.1.0",
+    "datasets>=2.18.0",
+]
 all = [
-    "vipym[torch,compression,serving,dev]",
+    "vipym[torch,compression,serving,dev,eval]",
 ]
 
 [project.scripts]
