@@ -70,6 +70,8 @@ dev = [
 eval = [
     "swebench>=2.1.0",
     "datasets>=2.18.0",
+    "mutmut>=2.4.0",
+    "coverage>=7.4.0",
 ]
 all = [
     "vipym[torch,compression,serving,dev,eval]",

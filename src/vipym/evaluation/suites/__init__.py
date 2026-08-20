@@ -6,6 +6,12 @@ from vipym.evaluation.suites.bigcodebench import (
     BigCodeBenchLiteSuite,
     BigCodeBenchSuite,
 )
+from vipym.evaluation.suites.crqbench import CRQBenchSuite
+from vipym.evaluation.suites.evalplus import (
+    EvalPlusSuite,
+    HumanEvalPlusSuite,
+    MBPPPlusSuite,
+)
 from vipym.evaluation.suites.humaneval import HumanEvalSuite
 from vipym.evaluation.suites.mbpp import LiveCodeBenchSuite, MBPPSuite
 from vipym.evaluation.suites.swebench import (
@@ -14,6 +20,7 @@ from vipym.evaluation.suites.swebench import (
     SWEBenchSuite,
     SWEBenchVerifiedSuite,
 )
+from vipym.evaluation.suites.testgeneval import TestGenEvalSuite
 
 __all__ = [
     "AiderEditSuite",
@@ -22,11 +29,16 @@ __all__ = [
     "BigCodeBenchHardSuite",
     "BigCodeBenchLiteSuite",
     "BigCodeBenchSuite",
+    "CRQBenchSuite",
+    "EvalPlusSuite",
+    "HumanEvalPlusSuite",
     "HumanEvalSuite",
     "LiveCodeBenchSuite",
+    "MBPPPlusSuite",
     "MBPPSuite",
     "SWEBenchFullSuite",
     "SWEBenchLiteSuite",
     "SWEBenchSuite",
     "SWEBenchVerifiedSuite",
+    "TestGenEvalSuite",
 ]

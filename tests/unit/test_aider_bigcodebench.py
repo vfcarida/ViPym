@@ -431,16 +431,9 @@ class TestEvaluationRegistrySuite:
 class TestBenchmarkRunnerSuite:
     def test_benchmark_runner_runs_aider_edit(self, sandbox_runner):
         runner = BenchmarkRunner(sandbox_runner=sandbox_runner)
-
-        # Canonical solution for task 0
-        canonical = """<<<<<<< SEARCH
-def two_fer(name):
-    pass
-=======
-def two_fer(name="you"):
-    return f"One for {name}, one for me."
->>>>>>> REPLACE"""
-        backend = MockInferenceBackend(response_generator=lambda req: canonical)
+        suite = EvaluationRegistry.get("aider_edit")
+        first_task = suite.load_tasks(limit=1)[0]
+        backend = MockInferenceBackend(response_generator=lambda req: first_task.canonical_solution)
 
         result = runner.run_suite("aider_edit", backend=backend, task_limit=1)
         assert isinstance(result, EvaluationSuiteResult)
@@ -450,18 +443,9 @@ def two_fer(name="you"):
 
     def test_benchmark_runner_runs_bigcodebench(self, sandbox_runner):
         runner = BenchmarkRunner(sandbox_runner=sandbox_runner)
-
-        canonical = """import numpy as np
-
-def task_func(numbers: list[int | float]) -> dict[str, float]:
-    arr = np.array(numbers)
-    return {
-        'mean': float(np.mean(arr)),
-        'std': float(np.std(arr)),
-        'median': float(np.median(arr)),
-    }
-"""
-        backend = MockInferenceBackend(response_generator=lambda req: canonical)
+        suite = EvaluationRegistry.get("bigcodebench")
+        first_task = suite.load_tasks(limit=1)[0]
+        backend = MockInferenceBackend(response_generator=lambda req: first_task.canonical_solution)
 
         result = runner.run_suite("bigcodebench", backend=backend, task_limit=1)
         assert isinstance(result, EvaluationSuiteResult)
