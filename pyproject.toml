@@ -51,6 +51,8 @@ compression = [
     "accelerate>=0.33.0",
     "safetensors>=0.4.3",
     "llm-compressor>=0.1.0",
+    "auto-gptq>=0.7.1",
+    "autoawq>=0.2.5",
 ]
 serving = [
     "vllm>=0.5.4",

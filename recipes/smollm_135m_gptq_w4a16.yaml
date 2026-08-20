@@ -1,0 +1,56 @@
+# ViPym GPTQ Recipe: SmolLM 135M 4-bit Quantization (W4A16, Group Size 128)
+# Compression: ~4x Memory Reduction with <1% quality loss, vLLM/AutoGPTQ compatible
+
+experiment_id: recipe-smollm-135m-gptq-w4a16
+seed: 42
+description: "4-bit second-order Hessian GPTQ quantization (group_size 128) on SmolLM 135M."
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+
+compression_pipeline:
+  - stage_id: "quantize_4bit"
+    method: "gptq"
+    scheme: "W4A16"
+    dependencies: []
+    calibration:
+      dataset_name: "wikitext"
+      dataset_config: "wikitext-2-raw-v1"
+      split: "train"
+      num_samples: 128
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      damp_percent: 0.01
+      desc_act: true
+      per_expert: false
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  max_model_len: 2048
+
+evaluation:
+  suites:
+    - "humaneval"
+  task_limit: 2
+  timeout_per_task_sec: 10
+  temperature: 0.0
+  max_new_tokens: 512
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_memory"
+
+infrastructure:
+  provider: "local"

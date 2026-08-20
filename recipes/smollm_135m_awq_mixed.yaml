@@ -1,0 +1,55 @@
+# ViPym AWQ Recipe: SmolLM 135M Mixed Precision (8-bit Shared Attention, 4-bit Expert FFNs)
+# Compression: ~4x Memory Reduction with Code-Alpaca Calibration, vLLM/AutoAWQ compatible
+
+experiment_id: recipe-smollm-135m-awq-mixed
+seed: 42
+description: "AWQ activation-aware mixed-precision quantization on SmolLM 135M."
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+
+compression_pipeline:
+  - stage_id: "awq_mixed"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: []
+    calibration:
+      dataset_name: "code_alpaca"
+      num_samples: 256
+      sequence_length: 2048
+    parameters:
+      w_bit: 4
+      group_size: 128
+      zero_point: true
+      mixed_precision:
+        shared_layers_bits: 8
+        expert_layers_bits: 4
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  max_model_len: 2048
+
+evaluation:
+  suites:
+    - "humaneval"
+  task_limit: 2
+  timeout_per_task_sec: 10
+  temperature: 0.0
+  max_new_tokens: 512
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_memory"
+
+infrastructure:
+  provider: "local"

@@ -7,6 +7,9 @@ from vipym.compression import (
     kv_cache as kv_cache,
 )
 from vipym.compression import (
+    methods as methods,
+)
+from vipym.compression import (
     pruning as pruning,
 )
 from vipym.compression import (
@@ -23,6 +26,7 @@ __all__ = [
     "DAGCompressionPipeline",
     "distillation",
     "kv_cache",
+    "methods",
     "pruning",
     "quantization",
     "transforms",

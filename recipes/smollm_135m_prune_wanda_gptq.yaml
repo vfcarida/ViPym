@@ -1,0 +1,59 @@
+# ViPym Multi-Stage Compression Recipe: SmolLM 135M Wanda 50% Pruning + GPTQ 4-bit Quantization
+# Compression: ~8x Combined Memory Reduction (2x Pruning * 4x Quantization)
+
+experiment_id: recipe-smollm-135m-prune-wanda-gptq
+seed: 42
+description: "Composed Wanda 50% unstructured pruning and GPTQ 4-bit quantization on SmolLM 135M."
+
+model:
+  id: "HuggingFaceTB/SmolLM-135M"
+  revision: "main"
+  trust_remote_code: false
+  device_map: "auto"
+
+compression_pipeline:
+  - stage_id: "prune_50"
+    method: "wanda"
+    dependencies: []
+    calibration:
+      dataset_name: "wikitext2"
+      num_samples: 128
+      sequence_length: 2048
+    parameters:
+      sparsity: 0.5
+      prune_type: "unstructured"
+      per_expert_sparsity: false
+
+  - stage_id: "quantize_after_prune"
+    method: "gptq"
+    dependencies: ["prune_50"]
+    parameters:
+      bits: 4
+      group_size: 128
+      sym: true
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  max_model_len: 2048
+
+evaluation:
+  suites:
+    - "humaneval"
+  task_limit: 2
+  timeout_per_task_sec: 10
+  temperature: 0.0
+  max_new_tokens: 512
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  aws_ec2_hourly_rate: 0.0
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_memory"
+
+infrastructure:
+  provider: "local"

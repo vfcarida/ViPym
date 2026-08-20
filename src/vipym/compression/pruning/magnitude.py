@@ -1,4 +1,4 @@
-"""Pruning & Sparsity Adapters (Magnitude, 2:4 Semi-Structured, Wanda)."""
+"""Pruning & Sparsity Adapters (Magnitude, 2:4 Semi-Structured, Wanda, SparseGPT)."""
 
 from pathlib import Path
 from typing import Any
@@ -6,6 +6,11 @@ from typing import Any
 import torch
 import torch.nn as nn
 
+from vipym.compression.methods.pruning import (
+    SparseGPTPruningMethod,
+    UnifiedPruningMethod,
+    WandaPruningMethod,
+)
 from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
@@ -135,59 +140,18 @@ class NMSparsityMethod(CompressionMethod):
         )
 
 
-class WandaPruningMethod(CompressionMethod):
-    """Wanda (Pruning by Weights and Activations) Adapter."""
-
-    def __init__(self, sparsity_ratio: float = 0.5) -> None:
-        self.sparsity_ratio = sparsity_ratio
-
-    @property
-    def name(self) -> str:
-        return f"prune_wanda_{int(self.sparsity_ratio * 100)}pct"
-
-    def get_capabilities(self) -> PluginCapability:
-        return PluginCapability(
-            supported_architectures={
-                ComputeArchitecture.DENSE,
-                ComputeArchitecture.MOE,
-            },
-            supported_dtypes={SupportedDtype.FP16, SupportedDtype.BF16},
-            supports_moe=True,
-            requires_calibration=True,
-            supported_runtimes={"vllm", "hf"},
-        )
-
-    def validate_applicability(self, model_metadata: ModelMetadata) -> None:
-        pass
-
-    def compress(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        calibration_data: Any | None = None,
-        output_dir: Path | None = None,
-        **kwargs: Any,
-    ) -> CompressionArtifact:
-        out = Path(output_dir or "./wanda_model")
-        out.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Applying Wanda Pruning (ratio={self.sparsity_ratio})")
-
-        if hasattr(model, "save_pretrained"):
-            model.save_pretrained(out)
-        if hasattr(tokenizer, "save_pretrained"):
-            tokenizer.save_pretrained(out)
-
-        total_bytes = sum(f.stat().st_size for f in out.glob("**/*") if f.is_file())
-
-        return CompressionArtifact(
-            output_path=out,
-            format="safetensors",
-            compressed_size_bytes=total_bytes,
-            applied_methods=[self.name],
-            metadata={"sparsity_ratio": self.sparsity_ratio},
-        )
-
-
 CompressionRegistry.register("prune_magnitude", MagnitudePruningMethod)
 CompressionRegistry.register("prune_nm", NMSparsityMethod)
 CompressionRegistry.register("prune_wanda", WandaPruningMethod)
+CompressionRegistry.register("prune_sparsegpt", SparseGPTPruningMethod)
+CompressionRegistry.register("wanda", WandaPruningMethod)
+CompressionRegistry.register("sparsegpt", SparseGPTPruningMethod)
+CompressionRegistry.register("pruning", UnifiedPruningMethod)
+
+__all__ = [
+    "MagnitudePruningMethod",
+    "NMSparsityMethod",
+    "SparseGPTPruningMethod",
+    "UnifiedPruningMethod",
+    "WandaPruningMethod",
+]
