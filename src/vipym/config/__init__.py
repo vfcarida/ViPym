@@ -26,6 +26,7 @@ from vipym.config.exceptions import (
     InferenceRuntimeError,
     InvalidPipelineDAGError,
     ModelAdapterError,
+    SandboxUnavailableError,
     StateTransitionError,
     ViPymError,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "ModelConfig",
     "OptimizationConfig",
     "OptimizationObjective",
+    "SandboxUnavailableError",
     "ServingBackendType",
     "ServingConfig",
     "StateTransitionError",

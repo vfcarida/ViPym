@@ -1,8 +1,10 @@
 """Evaluation Suite Runner and Aggregator."""
 
+from vipym.config.schema import EvaluationConfig
 from vipym.core.logger import get_logger
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
+from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
 from vipym.interfaces.evaluation import EvaluationSuiteResult, TaskResult
 from vipym.interfaces.inference import GenerationRequest, InferenceBackend
 
@@ -12,8 +14,22 @@ logger = get_logger(__name__)
 class BenchmarkRunner:
     """Orchestrates running multiple evaluation suites against an active inference backend."""
 
-    def __init__(self, sandbox_runner: SandboxedCodeRunner | None = None) -> None:
-        self.sandbox = sandbox_runner or SandboxedCodeRunner()
+    def __init__(
+        self,
+        sandbox_runner: SandboxedCodeRunner | None = None,
+        evaluation_config: EvaluationConfig | None = None,
+    ) -> None:
+        if sandbox_runner is not None:
+            self.sandbox = sandbox_runner
+        elif evaluation_config is not None:
+            sec_config = SandboxSecurityConfig(
+                timeout_seconds=evaluation_config.timeout_per_task_sec,
+                allow_unsafe_execution=evaluation_config.allow_unsafe_execution,
+                use_gvisor_runsc=evaluation_config.isolate_with_gvisor,
+            )
+            self.sandbox = SandboxedCodeRunner(config=sec_config)
+        else:
+            self.sandbox = SandboxedCodeRunner()
 
     def run_suite(
         self,

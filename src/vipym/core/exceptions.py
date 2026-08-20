@@ -49,6 +49,12 @@ class EvaluationSandboxError(ViPymError):
     pass
 
 
+class SandboxUnavailableError(EvaluationSandboxError):
+    """Raised when Docker / container sandbox is unavailable and unsafe execution is disallowed."""
+
+    pass
+
+
 class BenchmarkEvaluationError(ViPymError):
     """Raised when benchmark execution fails."""
 

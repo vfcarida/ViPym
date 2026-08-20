@@ -90,7 +90,7 @@ class ResumableExperimentRunner:
                     max_model_len=self.config.serving.max_model_len,
                 )
 
-                eval_runner = BenchmarkRunner()
+                eval_runner = BenchmarkRunner(evaluation_config=self.config.evaluation)
                 baseline_suite_results = []
                 for suite_name in self.config.evaluation.suites:
                     res = eval_runner.run_suite(
@@ -187,7 +187,7 @@ class ResumableExperimentRunner:
                         max_model_len=self.config.serving.max_model_len,
                     )
 
-                    eval_runner = BenchmarkRunner()
+                    eval_runner = BenchmarkRunner(evaluation_config=self.config.evaluation)
                     comp_suite_results = []
                     for suite_name in self.config.evaluation.suites:
                         res = eval_runner.run_suite(

@@ -107,6 +107,10 @@ class EvaluationConfig(BaseModel):
     task_limit: int | None = Field(
         default=None, description="Optional cap on number of tasks for smoke runs"
     )
+    allow_unsafe_execution: bool = Field(
+        default=False,
+        description="Explicit opt-in to allow non-containerized local subprocess execution when Docker is unavailable",
+    )
 
 
 class CostAssumptionConfig(BaseModel):

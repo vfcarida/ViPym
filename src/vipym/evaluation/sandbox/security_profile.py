@@ -15,6 +15,8 @@ class SandboxSecurityConfig:
     network_disabled: bool = True
     drop_capabilities: list[str] = None
     use_gvisor_runsc: bool = True
+    allow_unsafe_execution: bool = False
+    docker_image: str = "python:3.11-slim"
 
     def __post_init__(self):
         if self.drop_capabilities is None:

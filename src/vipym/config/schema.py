@@ -149,6 +149,10 @@ class EvaluationConfig(BaseModel):
     num_measurement_repeats: int = Field(
         default=3, ge=1, description="Repeats per benchmark task for statistical rigor"
     )
+    allow_unsafe_execution: bool = Field(
+        default=False,
+        description="Explicit opt-in to allow non-containerized local subprocess execution when Docker is unavailable",
+    )
 
 
 class CostAssumptionConfig(BaseModel):

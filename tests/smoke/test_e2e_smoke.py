@@ -17,7 +17,8 @@ from vipym.core.runner import ViPymRunner
 
 
 @pytest.mark.smoke
-def test_end_to_end_smoke_pipeline():
+def test_end_to_end_smoke_pipeline(monkeypatch):
+    monkeypatch.setenv("VIPYM_ALLOW_UNSAFE", "1")
     with tempfile.TemporaryDirectory() as tmpdir:
         config = ViPymExperimentConfig(
             experiment_id="smoke-test-run",
@@ -35,6 +36,7 @@ def test_end_to_end_smoke_pipeline():
                 suites=["humaneval"],
                 task_limit=1,
                 timeout_per_task_sec=5,
+                allow_unsafe_execution=True,
             ),
             cost_assumptions=CostAssumptionConfig(aws_ec2_hourly_rate=0.0),
         )

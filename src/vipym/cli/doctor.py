@@ -60,13 +60,20 @@ def run_doctor_checks() -> bool:
         table.add_row("LLM-Compressor", "[WARN]", "llm-compressor not installed (mock compression)")
 
     # 5. Docker / Sandboxing
+    from vipym.evaluation.sandbox.docker_sandbox import is_docker_available
+
     docker_bin = shutil.which("docker")
-    docker_ok = docker_bin is not None
-    table.add_row(
-        "Docker Sandbox",
-        "[OK]" if docker_ok else "[WARN]",
-        f"Binary: {docker_bin or 'Not Found (Subprocess fallback)'}",
-    )
+    docker_ok = is_docker_available()
+    if docker_ok:
+        docker_status = "[OK]"
+        docker_details = f"Daemon connected ({docker_bin})"
+    elif docker_bin:
+        docker_status = "[WARN]"
+        docker_details = f"Binary found ({docker_bin}), but daemon unreachable"
+    else:
+        docker_status = "[WARN]"
+        docker_details = "Docker not found (Required for container sandbox)"
+    table.add_row("Docker Sandbox", docker_status, docker_details)
 
     # 6. Disk Space
     total, used, free = shutil.disk_usage(".")
