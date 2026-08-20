@@ -1,0 +1,84 @@
+"""Recipe: Kimi K3 (2.8T MoE) → Dense 32B distillation pipeline.
+
+Pipeline stages:
+  1. profile_experts — score expert utilisation on calibration data
+  2. prune_experts   — remove bottom-25% experts per layer (+ KL router distillation)
+  3. merge_experts   — merge similar experts to 50% of remaining
+  4. distill_32b     — MoE teacher → dense Qwen2.5-32B student
+"""
+compression:
+  model_id: moonshotai/Kimi-K3-MoE
+
+  stages:
+    # ── Stage 1: Expert utilisation profiling ──────────────────────────────
+    - id: profile_experts
+      method: expert_profile
+      parameters:
+        dataset: c4
+        num_samples: 1024
+        scoring_strategy: combined          # 0.5·freq + 0.3·magnitude + 0.2·activation
+        output_file: expert_stats.json
+
+    # ── Stage 2: Prune bottom-25% experts per layer ────────────────────────
+    - id: prune_experts
+      method: expert_prune
+      dependencies: [profile_experts]
+      parameters:
+        strategy: importance
+        prune_ratio: 0.25
+        per_layer: true
+        retrain_router: true
+        router_steps: 200
+        router_distillation:
+          steps: 500
+          lr: 1e-4
+          calibration_samples: 1024
+          balance_loss_weight: 0.10
+          kl_loss_weight: 1.00
+          temperature: 1.0
+
+    # ── Stage 3: Merge similar experts ─────────────────────────────────────
+    - id: merge_experts
+      method: expert_merge
+      dependencies: [prune_experts]
+      parameters:
+        merge_strategy: frequency_weighted
+        similarity_threshold: 0.80
+        min_experts_per_layer: 1
+        retrain_router: true
+        router_steps: 200
+
+    # ── Stage 4: Distil compressed MoE → Dense 32B ─────────────────────────
+    - id: distill_32b
+      method: distillation
+      dependencies: [merge_experts]
+      parameters:
+        teacher_model: moonshotai/Kimi-K3-MoE   # compressed MoE from stage 3
+        student:
+          architecture: qwen2
+          size: 32b
+          init_from: Qwen/Qwen2.5-32B           # warm-start from pretrained
+        training:
+          epochs: 3
+          batch_size: 8
+          gradient_accumulation: 16
+          learning_rate: 2e-5
+          warmup_ratio: 0.1
+          temperature: 2.0
+          alpha: 0.7                             # 70% KL distil, 30% CE
+          deepspeed_stage: 3                     # ZeRO-3 for 32B
+          save_every_steps: 1000
+          eval_every_steps: 500
+          eval_benchmarks: [humaneval, bigcodebench_lite]
+          gradient_checkpointing: true
+          loss_type: forward_kl
+        data:
+          synthetic_samples: 500000
+          code_ratio: 0.8
+          execution_filter: true                 # keep only passing code samples
+          sandbox_timeout: 30
+          cache_teacher_logits: true             # cache on disk for efficiency
+          cache_dir: ./teacher_logit_cache_kimi_32b
+          max_seq_len: 2048
+          extra_corpora:
+            - bigcode/the-stack-v2-train-smol-ids

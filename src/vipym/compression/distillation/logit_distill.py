@@ -1,4 +1,19 @@
-"""Logit Distillation & Teacher-Generated Synthetic Data pipeline."""
+"""Logit Distillation & Teacher-Generated Synthetic Data pipeline.
+
+.. deprecated::
+    This module is a legacy stub.  For the full MoE-to-Dense distillation
+    engine use ``vipym.distillation`` (P007).  The ``LogitDistillationMethod``
+    class below is kept for backwards compatibility only.
+"""
+import warnings as _warnings
+
+_warnings.warn(
+    "vipym.compression.distillation.logit_distill is deprecated. "
+    "Use vipym.distillation (DistillationMethod) instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 from pathlib import Path
 from typing import Any
@@ -15,7 +30,11 @@ logger = get_logger(__name__)
 
 
 class LogitDistillationMethod(CompressionMethod):
-    """KL-Divergence Logit-level Distillation (Requires vocabulary alignment)."""
+    """KL-Divergence Logit-level Distillation (Requires vocabulary alignment).
+
+    .. deprecated::
+        Use ``vipym.distillation.DistillationMethod`` instead.
+    """
 
     def __init__(
         self,

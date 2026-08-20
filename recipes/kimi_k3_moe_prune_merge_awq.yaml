@@ -1,0 +1,66 @@
+"""Recipe: Kimi K3 MoE compression — Profile → Prune 25% → Merge 50% → AWQ 4-bit.
+
+Demonstrates full P006/P017 pipeline with router distillation.
+"""
+compression:
+  model_id: moonshotai/Kimi-K3-MoE
+
+  stages:
+    # Stage 1: Profile expert utilisation on calibration data
+    - id: profile_experts
+      method: expert_profile
+      parameters:
+        dataset: c4
+        num_samples: 1024
+        scoring_strategy: combined       # 0.5·freq + 0.3·magnitude + 0.2·activation
+        output_file: expert_stats.json
+
+    # Stage 2: Prune bottom-25% least-utilised experts per layer
+    - id: prune_experts
+      method: expert_prune
+      dependencies: [profile_experts]
+      parameters:
+        strategy: importance             # use combined importance score
+        prune_ratio: 0.25
+        per_layer: true
+        retrain_router: true
+        router_steps: 200
+        router_lr: 1e-4
+        # KL-guided router distillation (P017) — optional high-quality step
+        router_distillation:
+          steps: 500
+          lr: 1e-4
+          calibration_samples: 1024
+          balance_loss_weight: 0.10
+          kl_loss_weight: 1.00
+          entropy_loss_weight: 0.01
+          warmup_steps: 50
+          temperature: 1.0
+          max_utilisation_ratio: 3.0
+          log_every: 100
+
+    # Stage 3: Merge most similar expert pairs until 50% of remaining remain
+    - id: merge_experts
+      method: expert_merge
+      dependencies: [prune_experts]
+      parameters:
+        merge_strategy: frequency_weighted
+        similarity_threshold: 0.80
+        min_experts_per_layer: 1
+        retrain_router: true
+        router_steps: 200
+        router_lr: 1e-4
+
+    # Stage 4: Quantise surviving experts to 4-bit AWQ
+    - id: quantize_awq
+      method: awq
+      dependencies: [merge_experts]
+      parameters:
+        w_bit: 4
+        group_size: 128
+        zero_point: true
+        moe_expert_bits: 4
+        moe_shared_bits: 8            # shared attention layers stay at 8-bit
+        calibration_dataset: wikitext2
+        num_calibration_samples: 512
+        seqlen: 2048
