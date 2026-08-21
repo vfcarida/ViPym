@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -246,16 +247,6 @@ def report_cmd(
         console.print(p.read_text(encoding="utf-8"))
     else:
         console.print(f"[bold red]Report file not found: {p}[/bold red]")
-
-
-@app.command("compare")
-def compare_cmd(
-    baseline_dir: Path = typer.Option(..., "--baseline", "-b"),
-    experiment_dir: Path = typer.Option(..., "--candidate", "-c"),
-) -> None:
-    """Compare candidate experiment results against baseline."""
-    console.print(f"Comparing candidate {experiment_dir} vs baseline {baseline_dir}")
-    analyze_cmd(experiment_dir=experiment_dir)
 
 
 @app.command("list-models")

@@ -76,4 +76,8 @@ artifacts/
 gpu_artifacts/
 compressed_checkpoints/
 custom_compressed_weights/
+results/
+reports/
+*.log
+.tmp*
 .deepeval/

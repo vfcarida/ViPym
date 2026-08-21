@@ -373,7 +373,7 @@ class DistillationDataset(Dataset):
         text = sample.get("prompt", "") + sample.get("response", "")
 
         # Tokenise
-        if hasattr(self.tokenizer, "__call__"):
+        if callable(self.tokenizer):
             enc = self.tokenizer(
                 text,
                 return_tensors="pt",

@@ -259,7 +259,7 @@ class DeploymentCostModel:
         rows: list[dict[str, Any]] = []
 
         # 1. Add reference APIs
-        for api_name, pricing in COMMERCIAL_APIS.items():
+        for api_name, _pricing in COMMERCIAL_APIS.items():
             monthly_cost = self.project_commercial_api_monthly_spend(api_name)
             blended_1m = monthly_cost / (self.workload.total_monthly_tokens / 1_000_000.0)
             rows.append(

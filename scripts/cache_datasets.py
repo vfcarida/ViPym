@@ -17,7 +17,9 @@ def cache_all_datasets() -> None:
     try:
         from datasets import load_dataset  # type: ignore[import]
     except ImportError:
-        logger.error("HuggingFace 'datasets' package is required. Install via `pip install datasets`.")
+        logger.error(
+            "HuggingFace 'datasets' package is required. Install via `pip install datasets`."
+        )
         sys.exit(1)
 
     targets = [
@@ -38,7 +40,9 @@ def cache_all_datasets() -> None:
         except Exception as e:
             logger.warning(f"Could not cache {name} from remote: {e}. Fallbacks will be used.")
 
-    logger.info("Dataset caching routine complete! All benchmarks ready for offline/air-gapped execution.")
+    logger.info(
+        "Dataset caching routine complete! All benchmarks ready for offline/air-gapped execution."
+    )
 
 
 if __name__ == "__main__":

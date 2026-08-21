@@ -7,15 +7,6 @@
 """
 
 import warnings as _warnings
-
-_warnings.warn(
-    "vipym.compression.distillation.logit_distill is deprecated. "
-    "Use vipym.distillation (DistillationMethod) instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +17,13 @@ from vipym.core.constants import ComputeArchitecture, SupportedDtype
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
+
+_warnings.warn(
+    "vipym.compression.distillation.logit_distill is deprecated. "
+    "Use vipym.distillation (DistillationMethod) instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = get_logger(__name__)
 

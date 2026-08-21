@@ -179,7 +179,7 @@ class ExperimentComparator:
     <div class="container">
         <h1>ViPym Multi-Experiment Comparison</h1>
         <div class="subtitle">Side-by-side Pareto frontier trade-offs, SE quality benchmark retention, and cloud ROI projection.</div>
-        
+
         <div class="card">
             <h2>Comparative Experiment Matrix ({len(self.summaries)} runs)</h2>
             <table>

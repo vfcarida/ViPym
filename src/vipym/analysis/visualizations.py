@@ -14,7 +14,6 @@ from vipym.analysis.pareto import ParetoPoint
 
 try:
     import plotly.graph_objects as go
-    import plotly.io as pio
 
     HAS_PLOTLY = True
 except ImportError:

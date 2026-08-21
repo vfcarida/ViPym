@@ -13,9 +13,10 @@ seaborn>=0.13.0
 jinja2>=3.1.3
 boto3>=1.34.0
 docker>=7.0.0
+structlog>=24.1.0
 
 [all]
-vipym[compression,dev,serving,torch]
+vipym[compression,dev,eval,serving,torch]
 
 [compression]
 torch>=2.4.0
@@ -23,6 +24,8 @@ transformers>=4.44.0
 accelerate>=0.33.0
 safetensors>=0.4.3
 llm-compressor>=0.1.0
+auto-gptq>=0.7.1
+autoawq>=0.2.5
 
 [dev]
 pytest>=8.0.0
@@ -33,6 +36,12 @@ ruff>=0.4.0
 mypy>=1.9.0
 types-pyyaml>=6.0.12
 types-boto3>=1.0.0
+
+[eval]
+swebench>=2.1.0
+datasets>=2.18.0
+mutmut>=2.4.0
+coverage>=7.4.0
 
 [serving]
 vllm>=0.5.4

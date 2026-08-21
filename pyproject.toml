@@ -90,7 +90,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "C4", "UP"]
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "E741", "B905", "F841", "C408"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -103,7 +103,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers --import-mode=importlib"
 testpaths = ["tests"]
 pythonpath = ["src"]
 python_files = ["test_*.py"]

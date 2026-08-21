@@ -41,7 +41,7 @@ def retrain_router(
     loss_history: list[float] = []
 
     router_layer.train()
-    for step in range(steps):
+    for _step in range(steps):
         # Sample mini-batch
         indices = torch.randint(0, num_samples, (batch_size,), device=dev)
         batch_inputs = hidden_states[indices]
