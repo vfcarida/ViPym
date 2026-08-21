@@ -77,7 +77,10 @@ class ExperimentStateManager:
                     )
             except Exception as e:
                 logger.warning(f"Could not load state file {self.state_file_path}: {e}")
-        else:
+    def reset(self) -> None:
+        """Reset experiment state back to CREATED."""
+        self.current_state = ExperimentState.CREATED
+        if self.persist_to_disk:
             self.persist()
 
     def transition_to(self, next_state: ExperimentState, error_message: str | None = None) -> None:

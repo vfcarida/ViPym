@@ -1,0 +1,9 @@
+{
+  "artifact_path": "results\\se-lifecycle-demo-gpt2\\compressed_checkpoints\\stage_1_stage_02_gptq_quantization",
+  "applied_methods": [
+    "wanda_unstructured_50pct",
+    "gptq_w4a16_g128"
+  ],
+  "format": "gptq",
+  "compressed_size_bytes": 62219904
+}

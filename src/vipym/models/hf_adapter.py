@@ -99,22 +99,35 @@ class HuggingFaceModelAdapter(ModelAdapter):
         self,
         model_id_or_path: str,
         revision: str = "main",
-        device_map: str = "auto",
+        device_map: str | None = "auto",
         torch_dtype: torch.dtype | None = None,
         **kwargs: Any,
     ) -> nn.Module:
         try:
+            is_cuda = torch.cuda.is_available()
             dtype = torch_dtype or (
-                torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+                torch.bfloat16
+                if (is_cuda and torch.cuda.is_bf16_supported())
+                else (torch.float16 if is_cuda else torch.float32)
             )
-            model = AutoModelForCausalLM.from_pretrained(
-                model_id_or_path,
-                revision=revision,
-                device_map=device_map,
-                torch_dtype=dtype,
-                trust_remote_code=True,
-                **kwargs,
-            )
+            dev_map = device_map if is_cuda else None
+            try:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_id_or_path,
+                    revision=revision,
+                    device_map=dev_map,
+                    torch_dtype=dtype,
+                    trust_remote_code=True,
+                    **kwargs,
+                )
+            except Exception:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_id_or_path,
+                    revision=revision,
+                    torch_dtype=dtype,
+                    trust_remote_code=True,
+                    **kwargs,
+                )
             return model
         except Exception as e:
             raise ModelAdapterError(

@@ -130,8 +130,15 @@ class WandaPruningMethod(CompressionMethod):
 
         with torch.no_grad():
             for name, module in model.named_modules():
-                if isinstance(module, nn.Linear) and "lm_head" not in name:
-                    w = module.weight.data
+                if (
+                    (isinstance(module, nn.Linear) or module.__class__.__name__ == "Conv1D")
+                    and not any(k in name.lower() for k in ("lm_head", "embed", "wte", "wpe"))
+                    and hasattr(module, "weight")
+                    and module.weight is not None
+                    and len(module.weight.shape) == 2
+                ):
+                    is_conv1d = module.__class__.__name__ == "Conv1D"
+                    w = module.weight.data.t() if is_conv1d else module.weight.data
                     in_features = w.shape[1]
 
                     is_expert_layer = (
@@ -149,12 +156,14 @@ class WandaPruningMethod(CompressionMethod):
                     salience = w.abs() * act_norm.unsqueeze(0)
 
                     if prune_type == "2:4":
-                        module.weight.data = _prune_2_4_block(w, salience)
+                        pruned_w = _prune_2_4_block(w, salience)
                     else:
                         # Unstructured row-wise or global thresholding
                         thresh = torch.quantile(salience.float(), target_sp)
                         mask = salience > thresh
-                        module.weight.data = w * mask
+                        pruned_w = w * mask
+
+                    module.weight.data.copy_(pruned_w.t() if is_conv1d else pruned_w)
 
         # Save model and tokenizer
         if hasattr(model, "save_pretrained"):

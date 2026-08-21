@@ -1,0 +1,14 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{ViPym Compression Trade-off Comparison for se-lifecycle-demo-gpt2}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Configuration} & \textbf{Pass@1 (\%)} & \textbf{Latency (ms)} & \textbf{VRAM (GB)} & \textbf{Ratio} & \textbf{Pareto} \\
+\midrule
+Baseline & 0.0 & 45.0 & 0.3 & 1.0x &  \\
+Compressed (wanda\_unstructured\_50pct+gptq\_w4a16\_g128) & 0.0 & 28.0 & 0.1 & 4.0x & \checkmark \\
+\bottomrule
+\end{tabular}
+\label{tab:vipym_results}
+\end{table*}

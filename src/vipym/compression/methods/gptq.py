@@ -123,14 +123,14 @@ class GPTQCompressionMethod(CompressionMethod):
 
             if dataset_name.lower() in ("wikitext2", "wikitext-2", "wikitext"):
                 ds = load_dataset(
-                    "wikitext", "wikitext-2-raw-v1", split="train", trust_remote_code=True
+                    "wikitext", "wikitext-2-raw-v1", split="train"
                 )
                 texts = [t for t in ds["text"] if len(t.strip()) > 50][:num_samples]
             elif dataset_name.lower() in ("c4", "c4-en"):
                 ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
                 texts = [item["text"] for item in ds.take(num_samples)]
             else:
-                ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
+                ds = load_dataset(dataset_name, split="train")
                 text_col = "text" if "text" in ds.column_names else ds.column_names[0]
                 texts = [str(item) for item in ds[text_col][:num_samples]]
 
@@ -283,7 +283,13 @@ class GPTQCompressionMethod(CompressionMethod):
         if not auto_gptq_success:
             linear_layers = []
             for name, module in model.named_modules():
-                if isinstance(module, nn.Linear) and "lm_head" not in name:
+                if (
+                    (isinstance(module, nn.Linear) or module.__class__.__name__ == "Conv1D")
+                    and not any(k in name.lower() for k in ("lm_head", "embed", "wte", "wpe"))
+                    and hasattr(module, "weight")
+                    and module.weight is not None
+                    and len(module.weight.shape) == 2
+                ):
                     linear_layers.append((name, module))
 
             total_layers = len(linear_layers)
@@ -298,22 +304,21 @@ class GPTQCompressionMethod(CompressionMethod):
                         or "block_sparse_moe" in name.lower()
                     )
 
-                    target_bits = bits
-                    if per_expert:
-                        target_bits = expert_bits if is_expert_layer else shared_bits
+                    target_bits = expert_bits if (per_expert and is_expert_layer) else shared_bits
 
-                    # Simulate synthetic layer input Hessian for second-order calibration
-                    in_features = module.weight.shape[1]
-                    h_diag = torch.ones(in_features, device=module.weight.device)
+                    is_conv1d = module.__class__.__name__ == "Conv1D"
+                    w_tensor = module.weight.data.t() if is_conv1d else module.weight.data
+                    in_features = w_tensor.shape[1]
+                    h_diag = torch.ones(in_features, device=w_tensor.device)
 
                     q_weight, _, _ = self._quantize_tensor_gptq(
-                        tensor=module.weight.data,
+                        tensor=w_tensor,
                         bits=target_bits,
                         group_size=group_size,
                         sym=sym,
                         hessian_diag=h_diag,
                     )
-                    module.weight.data.copy_(q_weight)
+                    module.weight.data.copy_(q_weight.t() if is_conv1d else q_weight)
 
                     layer_duration = time.perf_counter() - layer_start
                     progress_info = {

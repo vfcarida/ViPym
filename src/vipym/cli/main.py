@@ -66,8 +66,14 @@ def validate_config(
 
 @app.command("run")
 def run_experiment(
-    config_path: Path = typer.Option(
-        ..., "--config", "-c", help="Path to experiment YAML configuration"
+    config_path: Path | None = typer.Argument(
+        None, help="Path to experiment YAML configuration or recipe path"
+    ),
+    config: Path | None = typer.Option(
+        None, "--config", "-c", help="Path to experiment YAML configuration"
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Directory to save output results/artifacts"
     ),
     artifacts_dir: Path = typer.Option(
         Path("./artifacts"), "--artifacts-dir", "-a", help="Directory to save artifacts"
@@ -77,9 +83,15 @@ def run_experiment(
     ),
 ) -> None:
     """Run an end-to-end compression, benchmark evaluation, and reporting experiment."""
-    console.print(f"[bold green]Starting ViPym Experiment:[/bold green] {config_path}")
-    cfg = ViPymExperimentConfig.from_yaml(config_path)
-    runner = ResumableExperimentRunner(config=cfg, artifacts_dir=artifacts_dir)
+    target_path = config_path or config
+    if not target_path:
+        console.print("[bold red]Error:[/bold red] Please specify an experiment config path or recipe (e.g. `vipym run recipes/se-lifecycle-demo.yaml`)")
+        raise typer.Exit(code=1)
+
+    target_artifacts = output or artifacts_dir
+    console.print(f"[bold green]Starting ViPym Experiment:[/bold green] {target_path}")
+    cfg = ViPymExperimentConfig.from_yaml(target_path)
+    runner = ResumableExperimentRunner(config=cfg, artifacts_dir=target_artifacts)
     res = runner.run(resume=not no_resume)
     console.print(
         f"\n[bold green][SUCCESS] Experiment [{res.experiment_id}] Completed Successfully![/bold green]"
@@ -87,7 +99,7 @@ def run_experiment(
     console.print(f"Manifest ID: [cyan]{res.manifest_id}[/cyan]")
     console.print(f"Total Duration: [yellow]{res.total_duration_sec:.2f}s[/yellow]")
     console.print(f"Total Est. Cost: [yellow]${res.total_cost_usd:.4f}[/yellow]")
-    console.print(f"Report Dashboard: [magenta]{res.generated_report_files.get('html')}[/magenta]")
+    console.print(f"Report Dashboard: [magenta]{res.generated_report_files.get('html') or res.generated_report_files.get('root_report_html')}[/magenta]")
 
 
 @app.command("baseline")
@@ -387,9 +399,21 @@ def run_recipe_cmd(
 @app.command("studio")
 def studio_cmd(
     port: int = typer.Option(8080, "--port", "-p", help="Port to run ViPym Studio"),
-    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host binding address"),
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host binding address (defaults to localhost)"),
     artifacts_dir: Path = typer.Option(
         Path("./artifacts"), "--artifacts-dir", "-a", help="Artifacts directory"
+    ),
+    read_only: bool = typer.Option(
+        False, "--read-only", "-r", help="Run Studio in read-only mode (prevents mutations)"
+    ),
+    token: str | None = typer.Option(
+        None, "--token", "-t", help="Custom Bearer auth token (defaults to ~/.vipym/studio-token)"
+    ),
+    rate_limit: int = typer.Option(
+        100, "--rate-limit", help="Max requests per minute per token"
+    ),
+    cors_origins: list[str] | None = typer.Option(
+        None, "--cors-origin", help="Allowed CORS origins"
     ),
     no_browser: bool = typer.Option(
         False, "--no-browser", help="Do not open browser automatically"
@@ -400,18 +424,31 @@ def studio_cmd(
 
     from vipym.studio.server import start_studio_server
 
-    url = f"http://{host}:{port}"
-    console.print(
-        f"[bold green]Starting ViPym Studio[/bold green] at: [bold cyan]{url}[/bold cyan]"
+    server = start_studio_server(
+        host=host,
+        port=port,
+        artifacts_dir=artifacts_dir,
+        token=token,
+        read_only=read_only,
+        rate_limit=rate_limit,
+        cors_origins=cors_origins,
     )
-    console.print(f"Artifacts workspace: [magenta]{artifacts_dir.resolve()}[/magenta]")
-    console.print("Press [bold red]Ctrl+C[/bold red] to stop server.\n")
 
-    server = start_studio_server(host=host, port=port, artifacts_dir=artifacts_dir)
+    url = f"http://{host}:{port}"
+    active_token = getattr(server, "auth_token", "N/A")
+
+    console.print(f"[bold green]ViPym Studio running at:[/bold green] [bold cyan]{url}[/bold cyan]")
+    console.print(f"Artifacts workspace: [magenta]{artifacts_dir.resolve()}[/magenta]")
+    console.print(f"Mode: [bold {'yellow' if read_only else 'green'}]{'READ-ONLY' if read_only else 'FULL ACCESS'}[/bold]")
+    console.print(f"Auth Token: [bold yellow]{active_token}[/bold yellow]")
+    console.print(f"Token Path: [cyan]~/.vipym/studio-token[/cyan]")
+    console.print(f"Health Probe: [cyan]{url}/health[/cyan]")
+    console.print(f"Rate Limit: [cyan]{rate_limit} req/min[/cyan]")
+    console.print("Press [bold red]Ctrl+C[/bold red] to stop server.\n")
 
     if not no_browser and host in ["127.0.0.1", "localhost"]:
         try:
-            webbrowser.open(url)
+            webbrowser.open(f"{url}?token={active_token}")
         except Exception:
             pass
 

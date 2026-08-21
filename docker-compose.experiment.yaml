@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # GPU-enabled Experiment Runner for Production Workloads (Kimi K3, Mixtral, DeepSeek)
+  vipym-experiment-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vipym:latest-gpu
+    container_name: vipym_gpu_runner
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - HF_HOME=/root/.cache/huggingface
+      - VIPYM_ALLOW_UNSAFE=0
+    volumes:
+      - ./recipes:/workspace/recipes:ro
+      - ./results:/workspace/results
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: ["vipym", "run", "recipes/se-lifecycle-kimi-k3.yaml", "--output", "results/"]
+
+  # CPU Demo Runner for Quick-Start (Laptop / Local Workstation)
+  vipym-experiment-demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vipym:latest-cpu
+    container_name: vipym_demo_runner
+    environment:
+      - VIPYM_ALLOW_UNSAFE=1
+      - HF_HOME=/root/.cache/huggingface
+    volumes:
+      - ./recipes:/workspace/recipes:ro
+      - ./results:/workspace/results
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    command: ["vipym", "run", "recipes/se-lifecycle-demo.yaml", "--output", "results/"]
+
+  # ViPym Studio Web UI & REST API Dashboard
+  vipym-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vipym:latest-cpu
+    container_name: vipym_studio_server
+    ports:
+      - "8080:8080"
+    environment:
+      - VIPYM_STUDIO_TOKEN=vipym-demo-secret-key-2026
+    volumes:
+      - ./results:/workspace/results
+    command: ["vipym", "studio", "--host", "0.0.0.0", "--port", "8080", "--artifacts-dir", "results/"]

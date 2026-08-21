@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
 from vipym.gates.config import GateThresholds
+from vipym.observability.logging import emit_event
 
 logger = get_logger(__name__)
 
@@ -195,6 +196,15 @@ class QualityEvalGate:
             markdown_report="",
         )
         verdict.markdown_report = self.generate_markdown_report(verdict)
+        emit_event(
+            "gate_result",
+            gate_name=verdict.gate_name,
+            passed=verdict.passed,
+            exit_code=verdict.exit_code,
+            total_checks=verdict.total_checks,
+            passed_checks=verdict.passed_checks,
+            failed_count=len(verdict.failed_checks),
+        )
         return verdict
 
     def generate_markdown_report(self, verdict: GateVerdict) -> str:

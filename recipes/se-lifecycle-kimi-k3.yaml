@@ -1,0 +1,137 @@
+# ViPym Production Recipe: Software Engineering Lifecycle End-to-End
+# Model: Moonshot AI Kimi K3 (2.8T MoE / 104B active parameters per token)
+# Matrix: FP8 Baseline, AWQ 4-bit (Code Calibrated), Expert Pruning (25%) + AWQ, Expert Merging (50%) + GPTQ, Distillation to 32B Dense
+# Evaluation: HumanEval, BigCodeBench, Aider Multi-File Edit, SWE-bench Lite
+
+experiment_id: se-lifecycle-kimi-k3-matrix
+seed: 42
+description: "Comprehensive end-to-end SE lifecycle compression matrix on Moonshot AI Kimi K3 2.8T MoE, evaluating cost vs quality on HumanEval, BigCodeBench, Aider Edit, and SWE-bench Lite."
+
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
+
+compression_pipeline:
+  # Pipeline Variant A: FP8 Static Quantization (Near-lossless baseline)
+  - stage_id: "variant_a_fp8_baseline"
+    method: "fp8"
+    scheme: "FP8"
+    dependencies: []
+    parameters:
+      format: "e4m3"
+      static_scales: true
+      weight_quant: true
+      activation_quant: true
+
+  # Pipeline Variant B: AWQ 4-bit with Code-Specific Calibration
+  - stage_id: "variant_b_awq_code_4bit"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: []
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+      protect_salient_channels: true
+
+  # Pipeline Variant C: MoE Expert Pruning (25%) + AWQ 4-bit
+  - stage_id: "variant_c_expert_prune_25"
+    method: "prune_magnitude"
+    scheme: "STRUCTURED_SPARSITY"
+    dependencies: []
+    parameters:
+      pruning_ratio: 0.25
+      router_calibration: "task_frequency"
+
+  - stage_id: "variant_c_awq_quant"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: ["variant_c_expert_prune_25"]
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+  # Pipeline Variant D: MoE Expert Merging (50%) + GPTQ 4-bit
+  - stage_id: "variant_d_expert_merge_50"
+    method: "prune_nm"
+    scheme: "2:4_SPARSITY"
+    dependencies: []
+    parameters:
+      merge_ratio: 0.50
+      merge_metric: "cosine_similarity"
+
+  - stage_id: "variant_d_gptq_quant"
+    method: "gptq"
+    scheme: "W4A16"
+    dependencies: ["variant_d_expert_merge_50"]
+    parameters:
+      bits: 4
+      group_size: 128
+      damp_percent: 0.01
+
+  # Pipeline Variant E: Cross-Architecture Distillation to 32B Dense
+  - stage_id: "variant_e_distill_dense_32b"
+    method: "distill_response"
+    scheme: "DISTILL_STUDENT"
+    dependencies: []
+    parameters:
+      student_model_id: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      temperature: 2.0
+      alpha_distill: 0.7
+      steps: 50000
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 64
+  pipeline_parallel_size: 1
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+  max_num_seqs: 128
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "bigcodebench"
+    - "aider"
+    - "swebench"
+  timeout_per_task_sec: 30
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+  num_measurement_repeats: 3
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 32.77
+  s3_storage_cost_per_gb_month: 0.023
+  data_transfer_per_gb: 0.09
+  active_gpu_count: 64
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 1200.0
+
+infrastructure:
+  provider: "aws_ec2"
+  aws_region: "us-east-1"
+  instance_type: "p5.48xlarge"
+  s3_bucket: "vipym-se-lifecycle-artifacts"
+  auto_teardown: true
+  idle_shutdown_timeout_min: 15

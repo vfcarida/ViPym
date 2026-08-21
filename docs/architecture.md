@@ -1,31 +1,71 @@
-# ViPym System Architecture
+# ViPym System Architecture & Design Overview
 
-ViPym decouples compression, serving, and evaluation to ensure domain-agnostic reusability and statistical reproducibility.
+ViPym is architected around **strict decoupled symmetry**: compression stages operate independently of benchmark domains, and evaluation engines operate independently of physical tensor storage formats.
 
-```mermaid
-flowchart TD
-    subgraph Control Plane
-        CFG[Configuration Loader] --> MAN[Manifest Generator]
-        MAN --> RUNNER[Resumable Experiment Runner]
-    end
-
-    subgraph Compute Plane
-        RUNNER --> DAG[Compression DAG Engine]
-        DAG --> QUANT[AWQ / GPTQ / SmoothQuant / QuaRot]
-        QUANT --> SERVE[Inference Runtime: vLLM / SGLang]
-        SERVE --> EVAL[Evaluation Engine in gVisor Sandbox]
-    end
-
-    subgraph Analysis Plane
-        EVAL --> METRICS[Telemetry & Quality Collector]
-        METRICS --> PARETO[Multi-Objective Pareto Frontier Engine]
-        PARETO --> REPORT[Report Generator: HTML / LaTeX / Plotly]
-    end
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         CLI / REST API / Studio UI                       │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+                 ┌───────────────────┴───────────────────┐
+                 ▼                                       ▼
+    ┌─────────────────────────┐             ┌─────────────────────────┐
+    │     Control Plane       │             │   Plugin Registries     │
+    │ ├─ Pydantic Schema      │             │ ├─ CompressionRegistry  │
+    │ ├─ Manifest Generator   │             │ ├─ EvaluationRegistry   │
+    │ ├─ Resumable FSM        │             │ ├─ ModelRegistry        │
+    │ └─ Kahn's DAG Planner   │             │ └─ InferenceRegistry    │
+    └────────────┬────────────┘             └────────────┬────────────┘
+                 │                                       │
+                 └───────────────────┬───────────────────┘
+                                     ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                      Compute & Compression Engine                    │
+    │ ├─ Rotational Transforms (QuaRot, SpinQuant)                         │
+    │ ├─ Sparsity & Pruning (Wanda, 2:4 Semi-Structured, Magnitude)        │
+    │ ├─ Quantization (AWQ, GPTQ, FP8, MXFP4, AutoRound, SmoothQuant)      │
+    │ ├─ MoE Surgery (Expert Profiling, Pruning, Merging)                  │
+    │ └─ Cross-Architecture Student Distillation                           │
+    └────────────────────────────────┬─────────────────────────────────────┘
+                                     ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                   Sandboxed Evaluation & Observability               │
+    │ ├─ High-Throughput Serving Backends (vLLM, SGLang, HF)               │
+    │ ├─ Zero-Trust Docker / gVisor Container Sandbox                      │
+    │ ├─ Software Engineering Suites (HumanEval+, BigCodeBench, SWE-bench) │
+    │ └─ Telemetry Profiler (TTFT, Throughput, VRAM, Structlog Events)     │
+    └────────────────────────────────┬─────────────────────────────────────┘
+                                     ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │               Pareto Frontier Optimization & Reporting               │
+    │ ├─ Non-Dominated Sorting & Utopia Distance Analysis                  │
+    │ ├─ Cloud ROI Modeling (15,000 Developer Scale)                       │
+    │ ├─ Automated Human-Readable Deployment Recommendations               │
+    │ └─ Unified Artifacts (Interactive Plotly HTML, LaTeX, Markdown)      │
+    └──────────────────────────────────────────────────────────────────────┘
 ```
 
-## Lifecycle States & Resumability
+---
 
-Experiments persist state at every boundary:
-`CREATED -> VALIDATED -> BASELINE_RUNNING -> BASELINE_COMPLETED -> COMPRESSION_RUNNING -> COMPRESSION_COMPLETED -> INFERENCE_VALIDATED -> EVALUATION_RUNNING -> EVALUATION_COMPLETED -> ANALYSIS_COMPLETED -> REPORT_COMPLETED`
+## 1. Core Subsystems
 
-If interrupted or stopped due to an out-of-memory error or hardware preemption, re-running `vipym run --config <path>` will resume directly from the last completed stage.
+### 1. Control Plane & FSM State Machine
+- **Pydantic v2 Configuration Engine** ([src/vipym/config/schema.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/config/schema.py)): Validates recipe files and parameter bounds before compute allocation.
+- **12-State Resumable FSM** ([src/vipym/experiments/state.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/experiments/state.py)): Checkpoints progress at every major milestone (`VALIDATED`, `BASELINE_COMPLETED`, `COMPRESSION_COMPLETED`, `EVALUATION_COMPLETED`, `ANALYSIS_COMPLETED`, `REPORT_COMPLETED`), allowing multi-hour experiments to resume seamlessly after interruptions.
+- **DAG Pipeline Planner** ([src/vipym/compression/dag.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/compression/dag.py)): Resolves stage dependencies using Kahn's topological sort.
+
+### 2. Compression Engine
+- **Transforms**: Outlier-suppression rotations (`quarot`, `spinquant`).
+- **Pruning**: Activation-aware sparsity (`wanda`, `sparsegpt`, `prune_nm`, `prune_magnitude`).
+- **Quantization**: Second-order and activation-aware integer and floating-point formats (`awq`, `gptq`, `fp8`, `mxfp`, `smoothquant`).
+- **MoE Surgery**: Expert router frequency profiling, surgical pruning, and cluster merging.
+- **Distillation**: Cross-architecture student-teacher training.
+
+### 3. Sandboxed Evaluation Runner
+- **gVisor / Docker Isolation** ([src/vipym/evaluation/sandbox/docker_sandbox.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/evaluation/sandbox/docker_sandbox.py)): Executes untrusted generated code in isolated containers with total network lockdown (`--network=none`), memory caps, and process timeouts.
+- **Inference Engines**: Integration with `vllm`, `sglang`, and `hf` engines for realistic throughput and latency measurements.
+
+### 4. Analysis, Pareto Optimization & Reporting
+- **Pareto Frontier Optimizer** ([src/vipym/analysis/pareto.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/analysis/pareto.py)): Multi-objective non-dominated sorting over `(Quality, VRAM, Latency, $/1M tokens)`.
+- **Deployment Recommender** ([src/vipym/analysis/recommender.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/analysis/recommender.py)): Synthesizes ranked deployment strategies and ROI projections.
+- **Unified Generator** ([src/vipym/reporting/generator.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/reporting/generator.py)): Produces Plotly interactive 3D/2D visualizers, standalone HTML dashboards, LaTeX publication tables, and Markdown executive summaries.

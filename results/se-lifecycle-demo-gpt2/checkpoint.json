@@ -1,0 +1,165 @@
+{
+  "experiment_id": "se-lifecycle-demo-gpt2",
+  "baseline_completed": true,
+  "baseline_score": 0.0,
+  "baseline_metrics": {
+    "pass_at_1": 0.0,
+    "suites": [
+      {
+        "suite_name": "humaneval",
+        "benchmark_version": "v1.0.0",
+        "total_tasks": 5,
+        "passed_tasks": 0,
+        "pass_at_1": 0.0,
+        "compile_rate": 0.0,
+        "unit_test_pass_rate": 0.0,
+        "task_results": [
+          {
+            "task_id": "HumanEval/0",
+            "suite": "humaneval",
+            "prompt": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+            "generated_solution": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    >>> has_close_elements(numbers: List[float], threshold: float)\n\n    >>> has_close_elements(numbers: List[float], threshold: float)\n\n    >>> has_close_elements(numbers: List[float], threshold: float)",
+            "passed": false,
+            "compile_success": false,
+            "unit_tests_passed": 0,
+            "unit_tests_total": 1,
+            "execution_time_ms": 0.0,
+            "error_message": "SyntaxError: Invalid python code",
+            "stdout": ""
+          },
+          {
+            "task_id": "HumanEval/1",
+            "suite": "humaneval",
+            "prompt": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n",
+            "generated_solution": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    >>> separate_paren_groups('( ) (( )( ))')\n\n    >>> separate_paren_groups('( ) (( )( ))')\n\n    >>> separate_paren_groups('( ) (( )( ))')\n\n    >>> separate_paren_groups('( ) (( )( ))')",
+            "passed": false,
+            "compile_success": false,
+            "unit_tests_passed": 0,
+            "unit_tests_total": 1,
+            "execution_time_ms": 0.0,
+            "error_message": "SyntaxError: Invalid python code",
+            "stdout": ""
+          },
+          {
+            "task_id": "HumanEval/2",
+            "suite": "humaneval",
+            "prompt": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
+            "generated_solution": "def truncate_number(number: float) -> float:\n\n    \"\"\" Given a positive floating point number, it can be decomposed into     and integer part (largest integer smaller than given number) and decimals     (leftover part always smaller than 1",
+            "passed": false,
+            "compile_success": false,
+            "unit_tests_passed": 0,
+            "unit_tests_total": 1,
+            "execution_time_ms": 0.0,
+            "error_message": "SyntaxError: Invalid python code",
+            "stdout": ""
+          },
+          {
+            "task_id": "HumanEval/3",
+            "suite": "humaneval",
+            "prompt": "from typing import List\n\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    \"\"\"\n",
+            "generated_solution": "from typing import List\n\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    \"\"\"\n    >>> below_zero([1, 2, -4, 5])\n\n    >>> below_zero([1, 2, -4, 5])\n\n    >>> below_zero([1, 2, -4, 5])\n\n    >>> below_zero([1, 2, -4, 5])",
+            "passed": false,
+            "compile_success": false,
+            "unit_tests_passed": 0,
+            "unit_tests_total": 1,
+            "execution_time_ms": 0.0,
+            "error_message": "SyntaxError: Invalid python code",
+            "stdout": ""
+          },
+          {
+            "task_id": "HumanEval/4",
+            "suite": "humaneval",
+            "prompt": "from typing import List\n\n\ndef mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n",
+            "generated_solution": "from typing import List\n\n\ndef mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n    return  \n\n    >>> mean_absolute_deviation(mean_absolute_deviation(numbers))\n\n    >>> mean_absolute_deviation(mean_absolute_deviation(numbers))\n\n    >>> mean_absolute_deviation(mean_absolute_deviation(numbers))",
+            "passed": false,
+            "compile_success": false,
+            "unit_tests_passed": 0,
+            "unit_tests_total": 1,
+            "execution_time_ms": 0.0,
+            "error_message": "SyntaxError: Invalid python code",
+            "stdout": ""
+          }
+        ],
+        "contamination_risk_score": 0.0,
+        "summary_metrics": {
+          "pass_at_1": 0.0,
+          "compile_rate": 0.0,
+          "latency_p50_ms": 2623.8123000002815,
+          "latency_p95_ms": 3091.22319999733,
+          "throughput_tok_s": 70.51574745251686,
+          "generation_throughput_tok_s": 22.397061225613296,
+          "peak_vram_gb": 0.0,
+          "cost_per_1m_tokens": 9.292565330264072,
+          "telemetry": {
+            "model_variant": "default",
+            "total_requests": 5,
+            "measured_requests": 2,
+            "warmup_requests": 3,
+            "total_prompt_tokens": 275,
+            "total_completion_tokens": 128,
+            "total_tokens": 403,
+            "throughput_tok_s": 70.51574745251686,
+            "prompt_throughput_tok_s": 48.11868622690356,
+            "generation_throughput_tok_s": 22.397061225613296,
+            "latency_p50_ms": 2623.8123000002815,
+            "latency_p90_ms": 3091.22319999733,
+            "latency_p95_ms": 3091.22319999733,
+            "latency_p99_ms": 3091.22319999733,
+            "mean_latency_ms": 2857.517749998806,
+            "min_latency_ms": 2623.8123000002815,
+            "max_latency_ms": 3091.22319999733,
+            "mean_ttft_ms": 44.63342421877314,
+            "mean_itl_ms": 44.63342421877314,
+            "peak_vram_gb": 0.0,
+            "allocated_vram_gb": 0.0
+          },
+          "cost": {
+            "model_variant": "default",
+            "total_prompt_tokens": 659,
+            "total_completion_tokens": 320,
+            "total_tokens": 979,
+            "total_time_seconds": 13.10028689999308,
+            "hourly_hardware_cost_usd": 2.5,
+            "hardware_cost_usd": 0.009097421458328528,
+            "cost_per_1m_tokens": 9.292565330264072,
+            "cost_per_1m_prompt_tokens": 13.804888404140407,
+            "cost_per_1m_completion_tokens": 28.42944205727665,
+            "baseline_api_name": "gpt-4o",
+            "baseline_api_cost_usd": 0.0048475,
+            "cost_savings_percentage": 0.0
+          }
+        }
+      }
+    ]
+  },
+  "compressed_artifact_path": "results\\se-lifecycle-demo-gpt2\\compressed_checkpoints\\stage_1_stage_02_gptq_quantization",
+  "compressed_methods_applied": [
+    "wanda_unstructured_50pct",
+    "gptq_w4a16_g128"
+  ],
+  "evaluation_completed": true,
+  "evaluation_results": {},
+  "analysis_completed": false,
+  "pareto_points": [
+    {
+      "experiment_id": "se-lifecycle-demo-gpt2",
+      "configuration_name": "Compressed (wanda_unstructured_50pct+gptq_w4a16_g128)",
+      "compression_method": "none",
+      "quality_score": 0.0,
+      "relative_quality_score": null,
+      "cost_per_1m_tokens": 1.2,
+      "cost_usd": 1.2,
+      "latency_p50_ms": 28.0,
+      "latency_p95_ms": 0.0,
+      "throughput_tok_s": 0.0,
+      "peak_vram_gb": 0.07070767879486084,
+      "compression_ratio": 4.0,
+      "hardware_recommendation": "",
+      "suite_scores": {},
+      "is_pareto_optimal": false,
+      "pareto_rank": 1,
+      "crowding_distance": 0.0,
+      "metadata": {}
+    }
+  ]
+}

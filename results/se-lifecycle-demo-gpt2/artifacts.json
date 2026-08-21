@@ -1,0 +1,10 @@
+{
+  "markdown": "results\\se-lifecycle-demo-gpt2\\reports\\report.md",
+  "html": "results\\se-lifecycle-demo-gpt2\\reports\\dashboard.html",
+  "latex": "results\\se-lifecycle-demo-gpt2\\reports\\table.tex",
+  "plotly_html": "results\\se-lifecycle-demo-gpt2\\reports\\pareto_interactive.html",
+  "static_png": "results\\se-lifecycle-demo-gpt2\\reports\\pareto_frontier.png",
+  "analysis_pareto": "results\\se-lifecycle-demo-gpt2\\analysis\\pareto.html",
+  "root_report_html": "results\\se-lifecycle-demo-gpt2\\report.html",
+  "recommendation_md": "results\\se-lifecycle-demo-gpt2\\analysis\\recommendation.md"
+}

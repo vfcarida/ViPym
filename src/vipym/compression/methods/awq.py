@@ -124,14 +124,14 @@ class AWQCompressionMethod(CompressionMethod):
                 ][:num_samples]
             elif "wikitext" in clean_name:
                 ds = load_dataset(
-                    "wikitext", "wikitext-2-raw-v1", split="train", trust_remote_code=True
+                    "wikitext", "wikitext-2-raw-v1", split="train"
                 )
                 texts = [t for t in ds["text"] if len(t.strip()) > 50][:num_samples]
             elif "c4" in clean_name:
                 ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
                 texts = [item["text"] for item in ds.take(num_samples)]
             else:
-                ds = load_dataset(dataset_name, split="train", trust_remote_code=True)
+                ds = load_dataset(dataset_name, split="train")
                 text_col = "text" if "text" in ds.column_names else ds.column_names[0]
                 texts = [str(item) for item in ds[text_col][:num_samples]]
 
@@ -164,7 +164,7 @@ class AWQCompressionMethod(CompressionMethod):
         zero_point: bool = True,
         act_scales: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-        """Quantize weight tensor using activation-aware channel protection and group-wise scaling."""
+        """Quantize weight tensor using activation-aware channel-scaled group quantization."""
         orig_shape = tensor.shape
         orig_dtype = tensor.dtype
         w = tensor.float().clone()
@@ -192,7 +192,6 @@ class AWQCompressionMethod(CompressionMethod):
         q_max = (1 << bits) - 1 if zero_point else (1 << (bits - 1)) - 1
         q_min = 0 if zero_point else -(1 << (bits - 1))
 
-        # 2. Group-wise Quantization
         for g in range(num_groups):
             start = g * g_size
             end = min((g + 1) * g_size, in_features)
@@ -232,7 +231,7 @@ class AWQCompressionMethod(CompressionMethod):
         output_dir: Path | None = None,
         **kwargs: Any,
     ) -> CompressionArtifact:
-        """Quantize model weights using AWQ with activation profiling and mixed precision."""
+        """Quantize model weights using AWQ activation protection with MoE support."""
         start_time = time.perf_counter()
         out = Path(output_dir or "./awq_model")
         out.mkdir(parents=True, exist_ok=True)
@@ -240,16 +239,20 @@ class AWQCompressionMethod(CompressionMethod):
         w_bit = int(kwargs.get("w_bit", kwargs.get("bits", self.w_bit)))
         group_size = int(kwargs.get("group_size", self.group_size))
         zero_point = bool(kwargs.get("zero_point", self.zero_point))
-        version = str(kwargs.get("version", self.version)).upper()
-        mixed_prec = kwargs.get("mixed_precision", self.mixed_precision) or {}
-
-        shared_bits = int(mixed_prec.get("shared_layers_bits", w_bit))
-        expert_bits = int(mixed_prec.get("expert_layers_bits", w_bit))
+        version = str(kwargs.get("version", self.version))
 
         calib_cfg = kwargs.get("calibration", self.calibration_config)
         dataset_name = calib_cfg.get("dataset") or calib_cfg.get("dataset_name", "code_alpaca")
         num_samples = int(calib_cfg.get("n_samples") or calib_cfg.get("num_samples", 128))
         seq_length = int(calib_cfg.get("seq_length") or calib_cfg.get("sequence_length", 2048))
+
+        mixed_cfg = kwargs.get("mixed_precision", self.mixed_precision) or {}
+        expert_bits = int(
+            mixed_cfg.get("expert_bits", mixed_cfg.get("expert_layers_bits", w_bit))
+        )
+        shared_bits = int(
+            mixed_cfg.get("shared_bits", mixed_cfg.get("shared_layers_bits", w_bit))
+        )
 
         logger.info(
             f"Executing AWQ quantization: bits={w_bit} (shared={shared_bits}, expert={expert_bits}), "
@@ -264,9 +267,10 @@ class AWQCompressionMethod(CompressionMethod):
             dataset_name=dataset_name,
         )
 
-        # 1. Attempt AutoAWQ native quantization backend if available
+        # 1. Attempt AutoAWQ native backend
         autoawq_success = False
         try:
+            # If model supports AutoAWQ quantize API
             if hasattr(model, "quantize") and callable(model.quantize):
                 quant_config = {
                     "zero_point": zero_point,
@@ -288,7 +292,13 @@ class AWQCompressionMethod(CompressionMethod):
         if not autoawq_success:
             linear_layers = []
             for name, module in model.named_modules():
-                if isinstance(module, nn.Linear) and "lm_head" not in name:
+                if (
+                    (isinstance(module, nn.Linear) or module.__class__.__name__ == "Conv1D")
+                    and not any(k in name.lower() for k in ("lm_head", "embed", "wte", "wpe"))
+                    and hasattr(module, "weight")
+                    and module.weight is not None
+                    and len(module.weight.shape) == 2
+                ):
                     linear_layers.append((name, module))
 
             total_layers = len(linear_layers)
@@ -307,22 +317,24 @@ class AWQCompressionMethod(CompressionMethod):
 
                     target_bits = expert_bits if is_expert_layer else shared_bits
 
+                    is_conv1d = module.__class__.__name__ == "Conv1D"
+                    w_tensor = module.weight.data.t() if is_conv1d else module.weight.data
+                    in_features = w_tensor.shape[1]
+
                     # Simulate activation magnitude profile for salient channel detection
-                    in_features = module.weight.shape[1]
-                    # Generate activation scale profile with a few prominent salient channels (top 1%)
-                    act_profile = torch.ones(in_features, device=module.weight.device)
+                    act_profile = torch.ones(in_features, device=w_tensor.device)
                     num_salient = max(1, in_features // 32)
                     salient_indices = torch.randperm(in_features)[:num_salient]
                     act_profile[salient_indices] = 8.0  # 8x higher activation magnitude
 
                     q_weight, _, _ = self._quantize_tensor_awq(
-                        tensor=module.weight.data,
+                        tensor=w_tensor,
                         bits=target_bits,
                         group_size=group_size,
                         zero_point=zero_point,
                         act_scales=act_profile,
                     )
-                    module.weight.data.copy_(q_weight)
+                    module.weight.data.copy_(q_weight.t() if is_conv1d else q_weight)
 
                     layer_duration = time.perf_counter() - layer_start
                     progress_info = {
@@ -371,7 +383,7 @@ class AWQCompressionMethod(CompressionMethod):
                 "zero_point": zero_point,
                 "version": version,
                 "modules_to_not_convert": ["lm_head"],
-                "mixed_precision": mixed_prec if mixed_prec else None,
+                "mixed_precision": mixed_cfg if mixed_cfg else None,
             }
 
             with open(config_path, "w", encoding="utf-8") as f:
@@ -389,7 +401,7 @@ class AWQCompressionMethod(CompressionMethod):
         # Memory calculation: average bits per param
         avg_bits = (
             (shared_bits + expert_bits) / 2.0
-            if (mixed_prec and shared_bits != expert_bits)
+            if (mixed_cfg and shared_bits != expert_bits)
             else float(w_bit)
         )
         compression_ratio = 16.0 / avg_bits
@@ -415,7 +427,7 @@ class AWQCompressionMethod(CompressionMethod):
                 "group_size": group_size,
                 "zero_point": zero_point,
                 "version": version,
-                "mixed_precision": mixed_prec,
+                "mixed_precision": mixed_cfg,
                 "compression_ratio": float(compression_ratio),
                 "memory_reduction_factor": float(compression_ratio),
                 "expected_perplexity_degradation": 0.005 if w_bit == 4 else 0.020,

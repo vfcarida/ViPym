@@ -1,0 +1,70 @@
+# ViPym Quality-First Recipe: Maximum Coding Retention & Near-Lossless Compression
+# Target Model: Qwen2.5-Coder-32B-Instruct
+# Pipeline: FP8 Static Quantization + FP8 KV-Cache (Near-Lossless 99.8% Pass@1 Retention)
+# Goal: Maximum programming performance on complex SE tasks, BigCodeBench, and SWE-bench
+
+experiment_id: recipe-quality-first-qwen-32b
+seed: 42
+description: "Quality-first software engineering model: Near-lossless FP8 static quantization on Qwen2.5-Coder-32B."
+
+model:
+  id: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  revision: "main"
+  trust_remote_code: true
+
+compression_pipeline:
+  - stage_id: "stage_01_fp8_static_quantization"
+    method: "fp8"
+    scheme: "FP8"
+    dependencies: []
+    parameters:
+      format: "e4m3"
+      static_scales: true
+      weight_quant: true
+      activation_quant: true
+
+  - stage_id: "stage_02_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_01_fp8_static_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 2
+  pipeline_parallel_size: 1
+  max_model_len: 32768
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "bigcodebench"
+    - "aider"
+    - "swebench"
+  timeout_per_task_sec: 30
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+  num_measurement_repeats: 3
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 6.40
+  s3_storage_cost_per_gb_month: 0.023
+  data_transfer_per_gb: 0.09
+  active_gpu_count: 2
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.75
+  max_acceptable_vram_gb: 80.0

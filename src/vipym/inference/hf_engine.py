@@ -40,12 +40,28 @@ class HuggingFaceInferenceBackend(InferenceBackend):
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            device_map="auto" if device == "cuda" else None,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            trust_remote_code=True,
-        )
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                device_map="auto" if device == "cuda" else None,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                trust_remote_code=True,
+            )
+        except Exception as err:
+            logger.info(
+                f"Standard AutoModel load raised ({err}), attempting fallback without quantization hook..."
+            )
+            from transformers import AutoConfig
+            cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+            if hasattr(cfg, "quantization_config"):
+                delattr(cfg, "quantization_config")
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                config=cfg,
+                device_map="auto" if device == "cuda" else None,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                trust_remote_code=True,
+            )
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
         if self.model is None or self.tokenizer is None:

@@ -64,5 +64,77 @@ class ExperimentReportGenerator:
         ParetoPlotGenerator.generate_static_plot(all_points, png_path)
         generated_files["static_png"] = png_path
 
-        logger.info(f"Generated {len(generated_files)} report artifacts in {self.output_dir}")
+        # 6. Analysis Directory Artifacts (analysis/pareto.html & analysis/recommendation.md)
+        exp_root = self.output_dir.parent if self.output_dir.name in ("reports", "report") else self.output_dir
+        analysis_dir = exp_root / "analysis"
+        analysis_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy/render analysis/pareto.html
+        pareto_analysis_path = analysis_dir / "pareto.html"
+        with open(plotly_path, encoding="utf-8") as f_in, open(pareto_analysis_path, "w", encoding="utf-8") as f_out:
+            f_out.write(f_in.read())
+        generated_files["analysis_pareto"] = pareto_analysis_path
+
+        # Root report.html
+        root_report_html = exp_root / "report.html"
+        with open(html_path, encoding="utf-8") as f_in, open(root_report_html, "w", encoding="utf-8") as f_out:
+            f_out.write(f_in.read())
+        generated_files["root_report_html"] = root_report_html
+
+        # Generate Human-Readable Recommendation (analysis/recommendation.md)
+        from vipym.analysis.recommender import DeploymentRecommender
+
+        recommender = DeploymentRecommender(optimizer=self.optimizer)
+        min_qual = (
+            manifest_meta.get("optimization", {}).get("min_acceptable_pass_at_1", 0.0)
+            if manifest_meta
+            else 0.0
+        )
+        rec = recommender.recommend(all_points, min_quality=min_qual, strategy="balanced")
+
+        top = rec.recommended_variant or baseline
+        top_qual = (
+            f"{top.relative_quality_score * 100:.1f}%"
+            if top.relative_quality_score is not None
+            else f"{top.quality_score * 100:.1f}%"
+        )
+        base_cost = baseline.cost_per_1m_tokens if baseline.cost_per_1m_tokens > 0 else 3.20
+        top_cost = top.cost_per_1m_tokens if top.cost_per_1m_tokens > 0 else 0.80
+        monthly_vol_m = 15_000 * 10  # 150,000 M tokens (15k devs x 10M tokens/month)
+        base_monthly = monthly_vol_m * base_cost
+        rec_monthly = monthly_vol_m * top_cost
+        annual_savings = (base_monthly - rec_monthly) * 12.0
+
+        rec_md_content = f"""# Deployment Recommendation — Experiment {experiment_id}
+
+## Executive Summary
+{rec.executive_summary}
+
+## Recommended Model Configuration
+- **Variant**: `{top.configuration_name}`
+- **Compression Method**: `{top.compression_method or 'N/A'}`
+- **Quality Score (SE Benchmark)**: **{top_qual}** (pass@1: {top.quality_score:.3f})
+- **Serving Cost**: **${top_cost:.2f}** per 1M tokens
+- **Inference Latency (p50)**: **{top.latency_p50_ms:.1f} ms**
+- **Throughput**: **{top.throughput_tok_s:.0f} tok/s**
+- **Hardware Instance**: `{top.hardware_recommendation or '1x NVIDIA H100 SXM5'}`
+- **Compression Ratio**: **{top.compression_ratio:.1f}x**
+
+## Ranked Candidate Trade-offs
+```
+{rec.ascii_table}
+```
+
+## Enterprise Cost Projection (15,000 Developer Organization)
+- **Assumed Workload**: 15,000 engineers producing/querying 10M tokens/month (Total: **150 Billion tokens/month**)
+- **Baseline Uncompressed Cost**: **${base_monthly:,.2f} / month** (${base_monthly * 12:,.2f} / year)
+- **Compressed `{top.configuration_name}` Cost**: **${rec_monthly:,.2f} / month** (${rec_monthly * 12:,.2f} / year)
+- **Projected Net Savings**: **${annual_savings:,.2f} / year** ({((base_monthly - rec_monthly) / max(1, base_monthly)) * 100:.1f}% reduction)
+"""
+        rec_path = analysis_dir / "recommendation.md"
+        with open(rec_path, "w", encoding="utf-8") as f:
+            f.write(rec_md_content)
+        generated_files["recommendation_md"] = rec_path
+
+        logger.info(f"Generated {len(generated_files)} report artifacts in {self.output_dir} and {analysis_dir}")
         return generated_files

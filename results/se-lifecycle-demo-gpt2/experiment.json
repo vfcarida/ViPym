@@ -1,0 +1,96 @@
+{
+  "experiment_id": "se-lifecycle-demo-gpt2",
+  "seed": 42,
+  "description": "5-Minute CPU Quick-Start Demo: Full compression lifecycle, HumanEval evaluation, interactive Pareto analysis, and cost/quality recommendations.",
+  "model": {
+    "id": "openai-community/gpt2",
+    "revision": "main",
+    "trust_remote_code": true,
+    "custom_adapter_cls": null,
+    "device_map": "auto",
+    "torch_dtype": null
+  },
+  "compression_pipeline": [
+    {
+      "stage_id": "stage_01_wanda_pruning",
+      "method": "prune_wanda",
+      "scheme": "UNSTRUCTURED_SPARSITY",
+      "calibration": null,
+      "parameters": {
+        "sparsity": 0.5,
+        "prune_type": "unstructured"
+      },
+      "dependencies": []
+    },
+    {
+      "stage_id": "stage_02_gptq_quantization",
+      "method": "gptq",
+      "scheme": "W4A16",
+      "calibration": null,
+      "parameters": {
+        "bits": 4,
+        "group_size": 64,
+        "sym": true
+      },
+      "dependencies": [
+        "stage_01_wanda_pruning"
+      ]
+    }
+  ],
+  "serving": {
+    "backend": "hf",
+    "tensor_parallel_size": 1,
+    "pipeline_parallel_size": 1,
+    "max_model_len": 1024,
+    "gpu_memory_utilization": 0.5,
+    "kv_cache_dtype": "auto",
+    "enable_speculative_decoding": false,
+    "speculative_draft_model": null,
+    "num_speculative_tokens": 5,
+    "max_num_seqs": 256
+  },
+  "evaluation": {
+    "suites": [
+      "humaneval"
+    ],
+    "timeout_per_task_sec": 15,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_new_tokens": 64,
+    "pass_k_values": [
+      1
+    ],
+    "isolate_with_gvisor": false,
+    "task_limit": 5,
+    "num_measurement_repeats": 1,
+    "allow_unsafe_execution": true
+  },
+  "cost_assumptions": {
+    "provider": "custom",
+    "region": "local",
+    "pricing_source": "config",
+    "aws_ec2_hourly_rate": 0.5,
+    "s3_storage_cost_per_gb_month": 0.02,
+    "data_transfer_per_gb": 0.05,
+    "active_gpu_count": 1
+  },
+  "optimization": {
+    "objectives": [
+      "maximize_quality",
+      "minimize_latency",
+      "minimize_memory",
+      "minimize_cost"
+    ],
+    "min_acceptable_pass_at_1": 0.0,
+    "max_acceptable_vram_gb": 4.0,
+    "max_acceptable_latency_ms": null
+  },
+  "infrastructure": {
+    "provider": "local",
+    "aws_region": "us-east-1",
+    "instance_type": null,
+    "s3_bucket": null,
+    "auto_teardown": true,
+    "idle_shutdown_timeout_min": 20
+  }
+}

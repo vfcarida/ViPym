@@ -1,0 +1,42 @@
+[
+  {
+    "experiment_id": "se-lifecycle-demo-gpt2",
+    "configuration_name": "Baseline",
+    "compression_method": "none",
+    "quality_score": 0.0,
+    "relative_quality_score": null,
+    "cost_per_1m_tokens": 2.5,
+    "cost_usd": 2.5,
+    "latency_p50_ms": 45.0,
+    "latency_p95_ms": 0.0,
+    "throughput_tok_s": 0.0,
+    "peak_vram_gb": 0.28283071517944336,
+    "compression_ratio": 1.0,
+    "hardware_recommendation": "",
+    "suite_scores": {},
+    "is_pareto_optimal": false,
+    "pareto_rank": 1,
+    "crowding_distance": 0.0,
+    "metadata": {}
+  },
+  {
+    "experiment_id": "se-lifecycle-demo-gpt2",
+    "configuration_name": "Compressed (wanda_unstructured_50pct+gptq_w4a16_g128)",
+    "compression_method": "none",
+    "quality_score": 0.0,
+    "relative_quality_score": null,
+    "cost_per_1m_tokens": 1.2,
+    "cost_usd": 1.2,
+    "latency_p50_ms": 28.0,
+    "latency_p95_ms": 0.0,
+    "throughput_tok_s": 0.0,
+    "peak_vram_gb": 0.07070767879486084,
+    "compression_ratio": 4.0,
+    "hardware_recommendation": "",
+    "suite_scores": {},
+    "is_pareto_optimal": true,
+    "pareto_rank": 1,
+    "crowding_distance": 0.0,
+    "metadata": {}
+  }
+]

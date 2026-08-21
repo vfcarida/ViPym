@@ -1,0 +1,81 @@
+# ViPym Production Recipe: Moonshot AI Kimi K3 Full Compression Pipeline
+# Model: Moonshot AI Kimi K3 (2.8T MoE / 104B active parameters per token)
+# Pipeline: QuaRot Walsh-Hadamard Transform -> AWQ W4A16 -> FP8 KV Cache
+
+experiment_id: recipe-kimi-k3-full-quarot-awq
+seed: 42
+description: "Full production compression pipeline for Kimi K3 2.8T MoE with QuaRot outlier protection, AWQ W4A16, and FP8 KV-cache."
+
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
+
+compression_pipeline:
+  - stage_id: "stage_01_quarot_transform"
+    method: "quarot"
+    scheme: "W4A16"
+    dependencies: []
+    parameters:
+      apply_online_hadamard: true
+
+  - stage_id: "stage_02_awq_quantization"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: ["stage_01_quarot_transform"]
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+  - stage_id: "stage_03_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_02_awq_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 64
+  pipeline_parallel_size: 1
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+  max_num_seqs: 128
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+    - "swebench"
+  timeout_per_task_sec: 25
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 32.77
+  s3_storage_cost_per_gb_month: 0.023
+  data_transfer_per_gb: 0.09
+  active_gpu_count: 64
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 1600.0

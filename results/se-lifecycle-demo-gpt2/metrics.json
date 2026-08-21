@@ -1,0 +1,10 @@
+{
+  "compression_cost_usd": 0.006,
+  "inference_evaluation_cost_usd": 0.006,
+  "storage_cost_usd": 0.0,
+  "data_transfer_cost_usd": 0.05,
+  "total_cost_usd": 0.062,
+  "cost_per_1m_input_tokens_usd": 0.0399,
+  "cost_per_1m_output_tokens_usd": 0.0399,
+  "cost_per_successful_task_usd": 0.0062
+}

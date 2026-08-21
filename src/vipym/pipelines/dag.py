@@ -1,6 +1,5 @@
 """Topological DAG compression pipeline engine."""
 
-import time
 from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
@@ -9,6 +8,7 @@ from vipym.config.exceptions import InvalidPipelineDAGError
 from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod, CompressionPipeline
 from vipym.interfaces.model import ModelAdapter, ModelMetadata
+from vipym.observability.progress import PipelineProgressTracker
 from vipym.pipelines.node import PipelineStageNode
 
 logger = get_logger(__name__)
@@ -100,27 +100,41 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
         current_artifact: CompressionArtifact | None = None
         applied_methods: list[str] = []
 
+        tracker = PipelineProgressTracker(
+            total_stages=len(order),
+            pipeline_name="compression_dag",
+            pipeline_id=f"dag_{model_id}",
+        )
+
         for idx, stage_id in enumerate(order):
             node = self.nodes[stage_id]
-            stage_start = time.perf_counter()
             logger.info(
                 f"Starting DAG stage [{idx + 1}/{len(order)}]: '{stage_id}' ({node.method.name})"
             )
+            tracker.start_stage(stage_name=stage_id, stage_type=node.method.name)
 
             stage_out_dir = output_dir / f"stage_{idx}_{stage_id}"
             stage_out_dir.mkdir(parents=True, exist_ok=True)
 
-            current_artifact = node.method.compress(
-                model=model,
-                tokenizer=tokenizer,
-                output_dir=stage_out_dir,
-                **node.parameters,
-            )
-            node.executed = True
-            node.execution_time_sec = time.perf_counter() - stage_start
-            node.output_artifact = current_artifact
-            applied_methods.append(node.method.name)
-            logger.info(f"Completed stage '{stage_id}' in {node.execution_time_sec:.2f}s")
+            try:
+                current_artifact = node.method.compress(
+                    model=model,
+                    tokenizer=tokenizer,
+                    output_dir=stage_out_dir,
+                    **node.parameters,
+                )
+                node.executed = True
+                duration = tracker.complete_stage(
+                    stage_name=stage_id,
+                    metrics={"method": node.method.name},
+                )
+                node.execution_time_sec = duration
+                node.output_artifact = current_artifact
+                applied_methods.append(node.method.name)
+                logger.info(f"Completed stage '{stage_id}' in {duration:.2f}s")
+            except Exception as e:
+                tracker.fail_stage(stage_name=stage_id, error=e)
+                raise
 
         if current_artifact is None:
             baseline_dir = output_dir / "uncompressed_baseline"

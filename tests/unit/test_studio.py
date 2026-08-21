@@ -35,7 +35,9 @@ def studio_server(tmp_path_factory: pytest.TempPathFactory):
         encoding="utf-8",
     )
 
-    server = start_studio_server(host="127.0.0.1", port=18765, artifacts_dir=artifacts_dir)
+    server = start_studio_server(
+        host="127.0.0.1", port=18765, artifacts_dir=artifacts_dir, token="test-studio-token"
+    )
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     time.sleep(0.3)
@@ -88,7 +90,7 @@ def test_studio_models_inspect_api(studio_server: str) -> None:
 
 
 def test_studio_validate_api(studio_server: str) -> None:
-    """Test POST /api/validate endpoint with valid YAML."""
+    """Test POST /api/validate endpoint with valid YAML and auth token."""
     yaml_payload = {
         "yaml": """
 experiment_id: test-valid-001
@@ -109,7 +111,10 @@ evaluation:
     req = urllib.request.Request(
         f"{studio_server}/api/validate",
         data=json.dumps(yaml_payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer test-studio-token",
+        },
     )
     with urllib.request.urlopen(req) as resp:
         assert resp.status == 200

@@ -1,0 +1,79 @@
+# ViPym Cost-Optimized Recipe: Maximum Cost Reduction for Software Engineering Workloads
+# Target Model: Qwen2.5-Coder-7B-Instruct
+# Pipeline: 2:4 Semi-Structured Sparsity + GPTQ 4-bit Quantization + FP8 KV-Cache
+# Goal: Reduce serving cost to < $0.15 per 1M tokens with high coding throughput
+
+experiment_id: recipe-cost-optimized-qwen-7b
+seed: 42
+description: "Ultra cost-optimized software engineering model: 2:4 Sparsity and GPTQ W4A16 on Qwen2.5-Coder-7B."
+
+model:
+  id: "Qwen/Qwen2.5-Coder-7B-Instruct"
+  revision: "main"
+  trust_remote_code: true
+
+compression_pipeline:
+  - stage_id: "stage_01_sparsity_2_4"
+    method: "prune_nm"
+    scheme: "2:4_SPARSITY"
+    dependencies: []
+    parameters:
+      n: 2
+      m: 4
+      metric: "magnitude"
+
+  - stage_id: "stage_02_gptq_quantization"
+    method: "gptq"
+    scheme: "W4A16"
+    dependencies: ["stage_01_sparsity_2_4"]
+    calibration:
+      dataset_name: "code_alpaca"
+      num_samples: 256
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      sym: true
+
+  - stage_id: "stage_03_kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["stage_02_gptq_quantization"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 1
+  pipeline_parallel_size: 1
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 1024
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 1.20
+  s3_storage_cost_per_gb_month: 0.02
+  data_transfer_per_gb: 0.05
+  active_gpu_count: 1
+
+optimization:
+  objectives:
+    - "minimize_cost"
+    - "maximize_quality"
+    - "minimize_latency"
+  min_acceptable_pass_at_1: 0.50
+  max_acceptable_vram_gb: 16.0

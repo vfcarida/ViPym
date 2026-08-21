@@ -1,0 +1,133 @@
+{
+  "manifest_id": "manifest-se-lifecycle-demo-gpt2-977a6bfe",
+  "experiment_id": "se-lifecycle-demo-gpt2",
+  "timestamp_utc": "2026-08-21T02:41:12.328955+00:00",
+  "config_hash_sha256": "977a6bfe2bc4760e888988ab08dfdd35a06078688b261a65a0f2acb57d40fa69",
+  "config": {
+    "experiment_id": "se-lifecycle-demo-gpt2",
+    "seed": 42,
+    "description": "5-Minute CPU Quick-Start Demo: Full compression lifecycle, HumanEval evaluation, interactive Pareto analysis, and cost/quality recommendations.",
+    "model": {
+      "id": "openai-community/gpt2",
+      "revision": "main",
+      "trust_remote_code": true,
+      "custom_adapter_cls": null,
+      "device_map": "auto",
+      "torch_dtype": null
+    },
+    "compression_pipeline": [
+      {
+        "stage_id": "stage_01_wanda_pruning",
+        "method": "prune_wanda",
+        "scheme": "UNSTRUCTURED_SPARSITY",
+        "calibration": null,
+        "parameters": {
+          "sparsity": 0.5,
+          "prune_type": "unstructured"
+        },
+        "dependencies": []
+      },
+      {
+        "stage_id": "stage_02_gptq_quantization",
+        "method": "gptq",
+        "scheme": "W4A16",
+        "calibration": null,
+        "parameters": {
+          "bits": 4,
+          "group_size": 64,
+          "sym": true
+        },
+        "dependencies": [
+          "stage_01_wanda_pruning"
+        ]
+      }
+    ],
+    "serving": {
+      "backend": "hf",
+      "tensor_parallel_size": 1,
+      "pipeline_parallel_size": 1,
+      "max_model_len": 1024,
+      "gpu_memory_utilization": 0.5,
+      "kv_cache_dtype": "auto",
+      "enable_speculative_decoding": false,
+      "speculative_draft_model": null,
+      "num_speculative_tokens": 5,
+      "max_num_seqs": 256
+    },
+    "evaluation": {
+      "suites": [
+        "humaneval"
+      ],
+      "timeout_per_task_sec": 15,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_new_tokens": 64,
+      "pass_k_values": [
+        1
+      ],
+      "isolate_with_gvisor": false,
+      "task_limit": 5,
+      "num_measurement_repeats": 1,
+      "allow_unsafe_execution": true
+    },
+    "cost_assumptions": {
+      "provider": "custom",
+      "region": "local",
+      "pricing_source": "config",
+      "aws_ec2_hourly_rate": 0.5,
+      "s3_storage_cost_per_gb_month": 0.02,
+      "data_transfer_per_gb": 0.05,
+      "active_gpu_count": 1
+    },
+    "optimization": {
+      "objectives": [
+        "maximize_quality",
+        "minimize_latency",
+        "minimize_memory",
+        "minimize_cost"
+      ],
+      "min_acceptable_pass_at_1": 0.0,
+      "max_acceptable_vram_gb": 4.0,
+      "max_acceptable_latency_ms": null
+    },
+    "infrastructure": {
+      "provider": "local",
+      "aws_region": "us-east-1",
+      "instance_type": null,
+      "s3_bucket": null,
+      "auto_teardown": true,
+      "idle_shutdown_timeout_min": 20
+    }
+  },
+  "environment": {
+    "vipym_version": "0.1.0",
+    "python_version": "3.12.10",
+    "host_os": "Windows",
+    "host_platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.13.0+cpu",
+    "transformers_version": "5.15.1",
+    "vllm_version": null,
+    "cuda_driver_version": null,
+    "cuda_runtime_version": null,
+    "gpu_devices": [],
+    "git_commit_sha": "ed45fa8ad69ad391b83e400e3c1d9e203c613415",
+    "container_digest": null
+  },
+  "state": "REPORT_COMPLETED",
+  "duration_seconds": 86.07850379999581,
+  "total_cost_usd": 0.062,
+  "summary_metrics": {
+    "baseline_pass_at_1": 0.0,
+    "compressed_count": 1
+  },
+  "artifacts": {
+    "markdown": "results\\se-lifecycle-demo-gpt2\\reports\\report.md",
+    "html": "results\\se-lifecycle-demo-gpt2\\reports\\dashboard.html",
+    "latex": "results\\se-lifecycle-demo-gpt2\\reports\\table.tex",
+    "plotly_html": "results\\se-lifecycle-demo-gpt2\\reports\\pareto_interactive.html",
+    "static_png": "results\\se-lifecycle-demo-gpt2\\reports\\pareto_frontier.png",
+    "analysis_pareto": "results\\se-lifecycle-demo-gpt2\\analysis\\pareto.html",
+    "root_report_html": "results\\se-lifecycle-demo-gpt2\\report.html",
+    "recommendation_md": "results\\se-lifecycle-demo-gpt2\\analysis\\recommendation.md"
+  }
+}

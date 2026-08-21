@@ -20,6 +20,8 @@ from vipym.experiments.state import ExperimentStateManager
 from vipym.inference.registry import InferenceRegistry
 from vipym.interfaces.compression import CompressionArtifact
 from vipym.models.registry import ModelRegistry
+from vipym.observability.logging import bind_context, emit_event
+from vipym.observability.progress import PipelineProgressTracker
 from vipym.pipelines.dag import DirectedAcyclicCompressionPipeline
 from vipym.reporting.generator import ExperimentReportGenerator
 
@@ -78,13 +80,29 @@ class ResumableExperimentRunner:
         if not self.checkpoint_enabled:
             resume = False
 
+        if not resume:
+            self.state_mgr.reset()
+            self.checkpoint = ExperimentCheckpoint(experiment_id=self.config.experiment_id)
+
         start_time = time.perf_counter()
+        bind_context(
+            experiment_id=self.config.experiment_id,
+            model_name=self.config.model.id,
+        )
+        emit_event("experiment_started", experiment_id=self.config.experiment_id, model=self.config.model.id)
         logger.info(
             f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume}, checkpoint={self.checkpoint_enabled})"
         )
 
+        tracker = PipelineProgressTracker(
+            total_stages=6,
+            pipeline_name=f"experiment_{self.config.experiment_id}",
+            pipeline_id=self.config.experiment_id,
+        )
+
         try:
             # 1. Validation Stage
+            tracker.start_stage("validation", stage_type="validation")
             if self.state_mgr.current_state in {ExperimentState.CREATED, ExperimentState.FAILED}:
                 self.state_mgr.transition_to(ExperimentState.VALIDATED)
 
@@ -102,8 +120,10 @@ class ResumableExperimentRunner:
                 f"Inspected Target Model '{metadata.model_id}': total_params={metadata.total_parameters / 1e9:.1f}B, "
                 f"active_params={metadata.active_parameters / 1e9:.1f}B, arch={metadata.architecture_type}"
             )
+            tracker.complete_stage("validation", metrics={"model_id": metadata.model_id})
 
             # 2. Baseline Stage
+            tracker.start_stage("baseline_evaluation", stage_type="evaluation")
             if not self.checkpoint.baseline_completed or not resume:
                 self.state_mgr.transition_to(ExperimentState.BASELINE_RUNNING)
                 logger.info("=== Stage: Immutable Baseline Serving & Evaluation ===")
@@ -147,7 +167,12 @@ class ResumableExperimentRunner:
                     self.checkpoint_mgr.save(self.checkpoint)
                 self.state_mgr.transition_to(ExperimentState.BASELINE_COMPLETED)
             else:
-                logger.info("✓ Skipping Baseline Stage (Already completed in checkpoint)")
+                logger.info("[OK] Skipping Baseline Stage (Already completed in checkpoint)")
+
+            tracker.complete_stage(
+                "baseline_evaluation",
+                metrics={"pass_at_1": self.checkpoint.baseline_score or 0.0},
+            )
 
             baseline_point = ParetoPoint(
                 experiment_id=self.config.experiment_id,
@@ -163,6 +188,7 @@ class ResumableExperimentRunner:
             # 3. Compression DAG Pipeline Stage
             compressed_artifact: CompressionArtifact | None = None
             if self.config.compression_pipeline:
+                tracker.start_stage("compression_dag", stage_type="compression")
                 if self.checkpoint.compressed_artifact_path is None or not resume:
                     self.state_mgr.transition_to(ExperimentState.COMPRESSION_RUNNING)
                     logger.info("=== Stage: Compression DAG Pipeline Execution ===")
@@ -191,17 +217,19 @@ class ResumableExperimentRunner:
                         self.checkpoint_mgr.save(self.checkpoint)
                     self.state_mgr.transition_to(ExperimentState.COMPRESSION_COMPLETED)
                 else:
-                    logger.info("✓ Skipping Compression Stage (Artifact loaded from checkpoint)")
+                    logger.info("[OK] Skipping Compression Stage (Artifact loaded from checkpoint)")
                     compressed_artifact = CompressionArtifact(
                         output_path=Path(self.checkpoint.compressed_artifact_path),
                         format="compressed-tensors",
                         compressed_size_bytes=1000,
                         applied_methods=self.checkpoint.compressed_methods_applied,
                     )
+                tracker.complete_stage("compression_dag")
 
             # 4. Evaluation Stage
             compressed_points = []
             if compressed_artifact:
+                tracker.start_stage("compressed_evaluation", stage_type="evaluation")
                 if not self.checkpoint.evaluation_completed or not resume:
                     self.state_mgr.transition_to(ExperimentState.EVALUATION_RUNNING)
                     logger.info("=== Stage: Compressed Model Serving & Evaluation ===")
@@ -229,6 +257,30 @@ class ResumableExperimentRunner:
 
                     comp_backend.stop()
 
+                    # Write per-suite evaluations to evaluations/ directory
+                    eval_dir = self.exp_dir / "evaluations"
+                    eval_dir.mkdir(parents=True, exist_ok=True)
+                    for res in comp_suite_results:
+                        suite_json_path = eval_dir / f"{res.suite_name.lower()}.json"
+                        with open(suite_json_path, "w", encoding="utf-8") as f:
+                            json.dump(res.model_dump(), f, indent=2)
+
+                    # Ensure models directory exists with reference to compressed checkpoint
+                    models_dir = self.exp_dir / "models"
+                    models_dir.mkdir(parents=True, exist_ok=True)
+                    (models_dir / "artifact_info.json").write_text(
+                        json.dumps(
+                            {
+                                "artifact_path": str(compressed_artifact.output_path),
+                                "applied_methods": compressed_artifact.applied_methods,
+                                "format": compressed_artifact.format,
+                                "compressed_size_bytes": compressed_artifact.compressed_size_bytes,
+                            },
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+
                     comp_pass1 = (
                         sum(s.pass_at_1 for s in comp_suite_results)
                         / max(1, len(comp_suite_results))
@@ -254,10 +306,15 @@ class ResumableExperimentRunner:
                         self.checkpoint_mgr.save(self.checkpoint)
                     self.state_mgr.transition_to(ExperimentState.EVALUATION_COMPLETED)
                 else:
-                    logger.info("✓ Skipping Evaluation Stage (Loaded from checkpoint)")
+                    logger.info("[OK] Skipping Evaluation Stage (Loaded from checkpoint)")
                     compressed_points = [ParetoPoint(**pt) for pt in self.checkpoint.pareto_points]
+                tracker.complete_stage(
+                    "compressed_evaluation",
+                    metrics={"points": len(compressed_points)},
+                )
 
             # 5. Analysis Stage
+            tracker.start_stage("analysis", stage_type="analysis")
             self.state_mgr.transition_to(ExperimentState.ANALYSIS_COMPLETED)
             total_duration = time.perf_counter() - start_time
 
@@ -269,8 +326,13 @@ class ResumableExperimentRunner:
                 output_tokens=50_000,
                 successful_tasks=10,
             )
+            tracker.complete_stage(
+                "analysis",
+                metrics={"total_cost_usd": cost_breakdown.total_cost_usd},
+            )
 
             # 6. Reporting Stage
+            tracker.start_stage("reporting", stage_type="reporting")
             report_gen = ExperimentReportGenerator(self.exp_dir / "reports")
             generated_files = report_gen.generate_all(
                 experiment_id=self.config.experiment_id,
@@ -312,8 +374,16 @@ class ResumableExperimentRunner:
             self.manifest.save(self.exp_dir / "manifest.json")
 
             self.state_mgr.transition_to(ExperimentState.REPORT_COMPLETED)
+            tracker.complete_stage("reporting", metrics={"artifacts": len(generated_files)})
+
+            emit_event(
+                "experiment_completed",
+                experiment_id=self.config.experiment_id,
+                duration_seconds=round(total_duration, 2),
+                total_cost_usd=cost_breakdown.total_cost_usd,
+            )
             logger.info(
-                f"✓ Experiment [{self.config.experiment_id}] completed successfully in {total_duration:.2f}s"
+                f"[OK] Experiment [{self.config.experiment_id}] completed successfully in {total_duration:.2f}s"
             )
 
             return ExperimentRunSummary(
@@ -328,6 +398,14 @@ class ResumableExperimentRunner:
             )
 
         except Exception as e:
+            if tracker.current_stage_name:
+                tracker.fail_stage(tracker.current_stage_name, error=e)
             self.state_mgr.transition_to(ExperimentState.FAILED, error_message=str(e))
+            emit_event(
+                "experiment_failed",
+                level="error",
+                experiment_id=self.config.experiment_id,
+                error=str(e),
+            )
             logger.error(f"Experiment [{self.config.experiment_id}] failed: {e}")
             raise

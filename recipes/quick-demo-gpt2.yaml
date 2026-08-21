@@ -1,0 +1,68 @@
+# ViPym Quick-Demo Recipe: 5-Minute CPU Run (GPT-2)
+# Purpose: Instant local demonstration without GPU hardware or Docker prerequisites.
+# Architecture: GPT-2 (124M) -> Wanda 50% Unstructured Pruning -> GPTQ 4-bit Quantization
+
+experiment_id: quick-demo-gpt2
+seed: 42
+description: "5-Minute CPU Quick-Start: Wanda 50% pruning and GPTQ 4-bit quantization on GPT-2 with HumanEval evaluation."
+
+model:
+  id: "openai-community/gpt2"
+  revision: "main"
+  trust_remote_code: true
+
+compression_pipeline:
+  - stage_id: "stage_01_wanda_pruning"
+    method: "prune_wanda"
+    scheme: "UNSTRUCTURED_SPARSITY"
+    dependencies: []
+    parameters:
+      sparsity: 0.50
+      prune_type: "unstructured"
+
+  - stage_id: "stage_02_gptq_quantization"
+    method: "gptq"
+    scheme: "W4A16"
+    dependencies: ["stage_01_wanda_pruning"]
+    parameters:
+      bits: 4
+      group_size: 64
+      sym: true
+
+serving:
+  backend: "hf"
+  tensor_parallel_size: 1
+  pipeline_parallel_size: 1
+  max_model_len: 1024
+  gpu_memory_utilization: 0.50
+
+evaluation:
+  suites:
+    - "humaneval"
+  timeout_per_task_sec: 15
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 64
+  pass_k_values: [1]
+  isolate_with_gvisor: false
+  allow_unsafe_execution: true
+  num_measurement_repeats: 1
+  task_limit: 5
+
+cost_assumptions:
+  provider: "custom"
+  region: "local"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 0.50
+  s3_storage_cost_per_gb_month: 0.02
+  data_transfer_per_gb: 0.05
+  active_gpu_count: 1
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_memory"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.0
+  max_acceptable_vram_gb: 4.0
