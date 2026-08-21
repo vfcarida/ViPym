@@ -1,7 +1,7 @@
 <div align="center">
 
 # ⚡ ViPym
-### *From $25/hr to $2/hr — Compress LLMs Without Losing Code Quality*
+### *Compress LLMs Without Losing Code Quality*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
