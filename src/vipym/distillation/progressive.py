@@ -40,7 +40,7 @@ from typing import Any
 import torch.nn as nn
 
 from vipym.core.logger import get_logger
-from vipym.distillation.config import DistillationConfig, _filter_fields
+from vipym.distillation.config import DistillationConfig
 from vipym.distillation.data import DistillationDataset, ExecutionFilter, SyntheticDataGenerator
 from vipym.distillation.student import StudentInitializer
 from vipym.distillation.trainer import DistillationTrainer
@@ -63,7 +63,7 @@ class ProgressiveStageSpec:
     data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ProgressiveStageSpec":
+    def from_dict(cls, d: dict[str, Any]) -> ProgressiveStageSpec:
         known = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
         return cls(**{k: v for k, v in d.items() if k in known})
 
@@ -133,7 +133,9 @@ class ProgressiveDistillationPipeline:
 
             # Build student
             vocab_size = getattr(tokenizer, "vocab_size", 32000) if tokenizer is not None else 32000
-            student = StudentInitializer(cfg.student, vocab_size=vocab_size).initialize(teacher=teacher)
+            student = StudentInitializer(cfg.student, vocab_size=vocab_size).initialize(
+                teacher=teacher
+            )
 
             # Build dataset
             dataset = self._build_dataset(teacher, tokenizer, cfg)
@@ -150,7 +152,9 @@ class ProgressiveDistillationPipeline:
 
             n_steps = len(metrics)
             final_loss = metrics[-1].loss if metrics else float("nan")
-            logger.info(f"[Progressive] Stage {stage_idx} done — {n_steps} steps, final loss={final_loss:.4f}")
+            logger.info(
+                f"[Progressive] Stage {stage_idx} done — {n_steps} steps, final loss={final_loss:.4f}"
+            )
 
             prev_output = stage_out
             stage_outputs.append(stage_out)
@@ -166,6 +170,7 @@ class ProgressiveDistillationPipeline:
             return self._load_model(model_id)
         # Fallback stub for tests
         from vipym.distillation.student import _SimpleDenseModel
+
         return _SimpleDenseModel(vocab_size=256, hidden_size=64, num_layers=2)
 
     def _load_tok(self, model_id: str) -> Any:

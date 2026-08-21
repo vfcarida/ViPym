@@ -149,13 +149,15 @@ class ExpertProfiler(CompressionMethod):
                     norm_a = activations[idx] / max_a
                     score = 0.5 * norm_f + 0.3 * norm_m + 0.2 * norm_a
                     importance_scores.append(float(score))
-                    expert_details.append({
-                        "expert_index": idx,
-                        "frequency": float(frequencies[idx]),
-                        "weight_magnitude": float(magnitudes[idx]),
-                        "activation_magnitude": float(activations[idx]),
-                        "importance_score": float(score),
-                    })
+                    expert_details.append(
+                        {
+                            "expert_index": idx,
+                            "frequency": float(frequencies[idx]),
+                            "weight_magnitude": float(magnitudes[idx]),
+                            "activation_magnitude": float(activations[idx]),
+                            "importance_score": float(score),
+                        }
+                    )
 
                 stats["layers"][layer_name] = {
                     "num_experts": num_experts,

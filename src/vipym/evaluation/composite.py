@@ -165,7 +165,9 @@ class SECompositeCalculator:
             for suite, score in normalized_scores.items():
                 if score < 0.20:
                     gate2_passed = False
-                    readiness_reasons.append(f"Suite '{suite}' score {score:.1%} is below minimum floor (20.0%)")
+                    readiness_reasons.append(
+                        f"Suite '{suite}' score {score:.1%} is below minimum floor (20.0%)"
+                    )
         thresholds_passed["no_suite_drop"] = gate2_passed
 
         # Gate 3: TestGen coverage threshold
@@ -196,7 +198,9 @@ class SECompositeCalculator:
 
         is_production_ready = all(thresholds_passed.values())
         if is_production_ready:
-            readiness_reasons.append("Model passed all SE benchmark quality thresholds for production readiness.")
+            readiness_reasons.append(
+                "Model passed all SE benchmark quality thresholds for production readiness."
+            )
 
         return SECompositeReport(
             composite_score=composite_score,

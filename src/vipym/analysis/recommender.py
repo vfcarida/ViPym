@@ -6,7 +6,7 @@ evaluates Pareto dominance and recommends ranked deployment configurations with 
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
@@ -28,7 +28,9 @@ class RecommendationReport:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "recommended_variant": self.recommended_variant.model_dump() if self.recommended_variant else None,
+            "recommended_variant": self.recommended_variant.model_dump()
+            if self.recommended_variant
+            else None,
             "ranked_options": [p.model_dump() for p in self.ranked_options],
             "constraints_applied": self.constraints_applied,
             "strategy": self.strategy,
@@ -138,24 +140,38 @@ class DeploymentRecommender:
 
         if strat == "cost_first":
             # Lowest cost first, then highest quality
-            return sorted(points, key=lambda p: (not p.is_pareto_optimal, p.cost_per_1m_tokens, -p.quality_score))
+            return sorted(
+                points,
+                key=lambda p: (not p.is_pareto_optimal, p.cost_per_1m_tokens, -p.quality_score),
+            )
         elif strat == "quality_first":
             # Highest quality first, then lowest cost
-            return sorted(points, key=lambda p: (not p.is_pareto_optimal, -p.quality_score, p.cost_per_1m_tokens))
+            return sorted(
+                points,
+                key=lambda p: (not p.is_pareto_optimal, -p.quality_score, p.cost_per_1m_tokens),
+            )
         elif strat == "throughput_first":
             # Highest throughput first
-            return sorted(points, key=lambda p: (not p.is_pareto_optimal, -p.throughput_tok_s, p.cost_per_1m_tokens))
+            return sorted(
+                points,
+                key=lambda p: (not p.is_pareto_optimal, -p.throughput_tok_s, p.cost_per_1m_tokens),
+            )
         else:
             # Balanced: Utopia distance
             utopia_choice = self.optimizer.find_closest_to_utopia(points)
             if utopia_choice:
-                remaining = [p for p in points if p.configuration_name != utopia_choice.configuration_name]
+                remaining = [
+                    p for p in points if p.configuration_name != utopia_choice.configuration_name
+                ]
                 remaining_sorted = sorted(
                     remaining,
                     key=lambda p: (not p.is_pareto_optimal, -p.quality_score, p.cost_per_1m_tokens),
                 )
                 return [utopia_choice] + remaining_sorted
-            return sorted(points, key=lambda p: (not p.is_pareto_optimal, -p.quality_score, p.cost_per_1m_tokens))
+            return sorted(
+                points,
+                key=lambda p: (not p.is_pareto_optimal, -p.quality_score, p.cost_per_1m_tokens),
+            )
 
     def _generate_summary(
         self,
@@ -186,7 +202,7 @@ class DeploymentRecommender:
         max_cost: float | None,
     ) -> str:
         cost_str = f", Budget < ${max_cost:.2f}/1M" if max_cost else ""
-        header_constraint = f"Constraint: SE Quality >= {min_quality*100:.0f}%{cost_str}"
+        header_constraint = f"Constraint: SE Quality >= {min_quality * 100:.0f}%{cost_str}"
 
         lines = [
             "╔══════════════════════════════════════════════════════════════════════════════╗",

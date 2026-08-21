@@ -15,9 +15,7 @@ Loss taxonomy
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # Vocabulary alignment
@@ -83,7 +81,7 @@ def forward_kl_loss(
     student_log_probs = F.log_softmax(student_logits.float() / temperature, dim=-1)
 
     loss = F.kl_div(student_log_probs, teacher_probs, reduction=reduction)
-    return (temperature ** 2) * loss
+    return (temperature**2) * loss
 
 
 def reverse_kl_loss(
@@ -108,7 +106,7 @@ def reverse_kl_loss(
     teacher_log_probs = F.log_softmax(teacher_logits.float() / temperature, dim=-1)
 
     loss = F.kl_div(teacher_log_probs, student_probs, reduction=reduction)
-    return (temperature ** 2) * loss
+    return (temperature**2) * loss
 
 
 def js_divergence_loss(
@@ -132,7 +130,7 @@ def js_divergence_loss(
 
     kl_tm = F.kl_div(m_log, t_probs, reduction=reduction)
     kl_sm = F.kl_div(m_log, s_probs, reduction=reduction)
-    return (temperature ** 2) * 0.5 * (kl_tm + kl_sm)
+    return (temperature**2) * 0.5 * (kl_tm + kl_sm)
 
 
 def ce_loss(

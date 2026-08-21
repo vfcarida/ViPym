@@ -12,29 +12,24 @@ Test classes:
 
 from __future__ import annotations
 
-import copy
 import json
 import math
 import textwrap
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 import torch.nn as nn
 
 from vipym.distillation.config import (
-    DataConfig,
     DistillationConfig,
     StudentConfig,
-    TrainingConfig,
     TrainingMetrics,
     _filter_fields,
 )
 from vipym.distillation.data import (
     DistillationDataset,
     ExecutionFilter,
-    SyntheticDataGenerator,
     TeacherLogitCache,
 )
 from vipym.distillation.losses import (
@@ -47,7 +42,6 @@ from vipym.distillation.losses import (
 )
 from vipym.distillation.student import StudentInitializer, _SimpleDenseModel
 from vipym.distillation.trainer import DistillationTrainer, _distil_collate_fn
-
 
 # ============================================================
 # Fixtures
@@ -93,12 +87,20 @@ def clean_samples() -> list[dict[str, str]]:
 
 @pytest.fixture()
 def minimal_cfg() -> DistillationConfig:
-    return DistillationConfig.from_dict({
-        "teacher_model": "test-teacher",
-        "student": {"size": "tiny", "architecture": "llama"},
-        "training": {"epochs": 1, "max_steps": 3, "batch_size": 1, "save_every_steps": 10, "eval_every_steps": 10},
-        "data": {"synthetic_samples": 0, "execution_filter": False},
-    })
+    return DistillationConfig.from_dict(
+        {
+            "teacher_model": "test-teacher",
+            "student": {"size": "tiny", "architecture": "llama"},
+            "training": {
+                "epochs": 1,
+                "max_steps": 3,
+                "batch_size": 1,
+                "save_every_steps": 10,
+                "eval_every_steps": 10,
+            },
+            "data": {"synthetic_samples": 0, "execution_filter": False},
+        }
+    )
 
 
 # ============================================================
@@ -117,28 +119,38 @@ class TestDistillationConfig:
         assert cfg.student.size == "7b"
 
     def test_from_dict_student_override(self):
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "x",
-            "student": {"architecture": "qwen2", "size": "32b", "init_from": "Qwen/Qwen2.5-32B"},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "x",
+                "student": {
+                    "architecture": "qwen2",
+                    "size": "32b",
+                    "init_from": "Qwen/Qwen2.5-32B",
+                },
+            }
+        )
         assert cfg.student.architecture == "qwen2"
         assert cfg.student.size == "32b"
         assert cfg.student.init_from == "Qwen/Qwen2.5-32B"
 
     def test_from_dict_training_override(self):
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "x",
-            "training": {"epochs": 5, "temperature": 3.0, "alpha": 0.6},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "x",
+                "training": {"epochs": 5, "temperature": 3.0, "alpha": 0.6},
+            }
+        )
         assert cfg.training.epochs == 5
         assert cfg.training.temperature == pytest.approx(3.0)
         assert cfg.training.alpha == pytest.approx(0.6)
 
     def test_from_dict_data_override(self):
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "x",
-            "data": {"synthetic_samples": 1000, "code_ratio": 0.5, "execution_filter": False},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "x",
+                "data": {"synthetic_samples": 1000, "code_ratio": 0.5, "execution_filter": False},
+            }
+        )
         assert cfg.data.synthetic_samples == 1000
         assert cfg.data.code_ratio == pytest.approx(0.5)
         assert cfg.data.execution_filter is False
@@ -149,7 +161,9 @@ class TestDistillationConfig:
         assert cfg.teacher_model == "x"
 
     def test_to_dict_round_trip(self):
-        cfg = DistillationConfig.from_dict({"teacher_model": "my/model", "training": {"alpha": 0.8}})
+        cfg = DistillationConfig.from_dict(
+            {"teacher_model": "my/model", "training": {"alpha": 0.8}}
+        )
         d = cfg.to_dict()
         assert d["teacher_model"] == "my/model"
         assert d["training"]["alpha"] == pytest.approx(0.8)
@@ -160,7 +174,9 @@ class TestDistillationConfig:
         assert "unknown" not in result
 
     def test_training_metrics_to_dict(self):
-        m = TrainingMetrics(step=5, epoch=0, loss=0.5, kl_loss=0.3, ce_loss=0.7, perplexity=2.0, learning_rate=1e-4)
+        m = TrainingMetrics(
+            step=5, epoch=0, loss=0.5, kl_loss=0.3, ce_loss=0.7, perplexity=2.0, learning_rate=1e-4
+        )
         d = m.to_dict()
         assert d["step"] == 5
         assert "perplexity" in d
@@ -283,8 +299,8 @@ class TestExecutionFilter:
 
     def test_filter_removes_invalid(self):
         samples = [
-            {"prompt": "p", "response": "def f(): pass\n"},   # valid
-            {"prompt": "p", "response": "def broken(:\n"},    # invalid
+            {"prompt": "p", "response": "def f(): pass\n"},  # valid
+            {"prompt": "p", "response": "def broken(:\n"},  # invalid
         ]
         flt = ExecutionFilter(allow_subprocess=False)
         kept = flt.filter(samples)
@@ -400,7 +416,9 @@ class TestStudentInitializer:
         assert sum(p.numel() for p in model.parameters()) > 0
 
     def test_teacher_subset_init(self, tiny_teacher):
-        cfg = StudentConfig(architecture="llama", size="tiny", init_from="teacher_subset", num_layers_from_teacher=1)
+        cfg = StudentConfig(
+            architecture="llama", size="tiny", init_from="teacher_subset", num_layers_from_teacher=1
+        )
         model = StudentInitializer(cfg, vocab_size=64).initialize(teacher=tiny_teacher)
         assert isinstance(model, nn.Module)
 
@@ -411,7 +429,9 @@ class TestStudentInitializer:
 
     def test_pretrained_fallback_on_bad_id(self):
         """Invalid HF model ID → falls back to random init without raising."""
-        cfg = StudentConfig(architecture="llama", size="tiny", init_from="nonexistent/model-xyz-123")
+        cfg = StudentConfig(
+            architecture="llama", size="tiny", init_from="nonexistent/model-xyz-123"
+        )
         model = StudentInitializer(cfg, vocab_size=64).initialize()
         assert isinstance(model, nn.Module)
 
@@ -428,39 +448,57 @@ class TestDistillationTrainer:
 
     def test_loss_decreases(self, tiny_teacher, tiny_student, tmp_path):
         """Student loss should generally decrease over a few steps."""
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "test",
-            "training": {
-                "epochs": 1, "max_steps": 5, "batch_size": 1,
-                "save_every_steps": 100, "eval_every_steps": 100,
-                "learning_rate": 1e-3, "temperature": 2.0, "alpha": 0.7,
-                "deepspeed_stage": 0,
-            },
-            "data": {"synthetic_samples": 0},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "test",
+                "training": {
+                    "epochs": 1,
+                    "max_steps": 5,
+                    "batch_size": 1,
+                    "save_every_steps": 100,
+                    "eval_every_steps": 100,
+                    "learning_rate": 1e-3,
+                    "temperature": 2.0,
+                    "alpha": 0.7,
+                    "deepspeed_stage": 0,
+                },
+                "data": {"synthetic_samples": 0},
+            }
+        )
         ds = self._make_tiny_dataset()
         trainer = DistillationTrainer(
-            teacher=tiny_teacher, student=tiny_student,
-            config=cfg, train_dataset=ds, output_dir=tmp_path,
+            teacher=tiny_teacher,
+            student=tiny_student,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path,
         )
         metrics = trainer.train()
         assert len(metrics) > 0
         assert all(math.isfinite(m.loss) for m in metrics)
 
     def test_metrics_logged_to_jsonl(self, tiny_teacher, tiny_student, tmp_path):
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "test",
-            "training": {
-                "epochs": 1, "max_steps": 3, "batch_size": 1,
-                "save_every_steps": 100, "eval_every_steps": 100,
-                "deepspeed_stage": 0,
-            },
-            "data": {"synthetic_samples": 0},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "test",
+                "training": {
+                    "epochs": 1,
+                    "max_steps": 3,
+                    "batch_size": 1,
+                    "save_every_steps": 100,
+                    "eval_every_steps": 100,
+                    "deepspeed_stage": 0,
+                },
+                "data": {"synthetic_samples": 0},
+            }
+        )
         ds = self._make_tiny_dataset()
         trainer = DistillationTrainer(
-            teacher=tiny_teacher, student=tiny_student,
-            config=cfg, train_dataset=ds, output_dir=tmp_path,
+            teacher=tiny_teacher,
+            student=tiny_student,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path,
         )
         trainer.train()
         log_path = tmp_path / "training_log.jsonl"
@@ -471,19 +509,27 @@ class TestDistillationTrainer:
         assert "step" in lines[0]
 
     def test_checkpoint_written(self, tiny_teacher, tiny_student, tmp_path):
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "test",
-            "training": {
-                "epochs": 1, "max_steps": 3, "batch_size": 1,
-                "save_every_steps": 2, "eval_every_steps": 100,
-                "deepspeed_stage": 0,
-            },
-            "data": {"synthetic_samples": 0},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "test",
+                "training": {
+                    "epochs": 1,
+                    "max_steps": 3,
+                    "batch_size": 1,
+                    "save_every_steps": 2,
+                    "eval_every_steps": 100,
+                    "deepspeed_stage": 0,
+                },
+                "data": {"synthetic_samples": 0},
+            }
+        )
         ds = self._make_tiny_dataset()
         trainer = DistillationTrainer(
-            teacher=tiny_teacher, student=tiny_student,
-            config=cfg, train_dataset=ds, output_dir=tmp_path,
+            teacher=tiny_teacher,
+            student=tiny_student,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path,
         )
         trainer.train()
         checkpoints = list(tmp_path.glob("checkpoint-*"))
@@ -491,21 +537,29 @@ class TestDistillationTrainer:
 
     def test_resume_from_checkpoint(self, tiny_teacher, tmp_path):
         """Resume restores step count and doesn't crash."""
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "test",
-            "training": {
-                "epochs": 1, "max_steps": 4, "batch_size": 1,
-                "save_every_steps": 2, "eval_every_steps": 100,
-                "deepspeed_stage": 0,
-            },
-            "data": {"synthetic_samples": 0},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "test",
+                "training": {
+                    "epochs": 1,
+                    "max_steps": 4,
+                    "batch_size": 1,
+                    "save_every_steps": 2,
+                    "eval_every_steps": 100,
+                    "deepspeed_stage": 0,
+                },
+                "data": {"synthetic_samples": 0},
+            }
+        )
         ds = self._make_tiny_dataset()
         torch.manual_seed(3)
         student1 = _SimpleDenseModel(vocab_size=64, hidden_size=32, num_layers=2)
         trainer1 = DistillationTrainer(
-            teacher=tiny_teacher, student=student1,
-            config=cfg, train_dataset=ds, output_dir=tmp_path,
+            teacher=tiny_teacher,
+            student=student1,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path,
         )
         trainer1.train()
         ckpt_dirs = sorted(tmp_path.glob("checkpoint-*"))
@@ -515,8 +569,11 @@ class TestDistillationTrainer:
         torch.manual_seed(3)
         student2 = _SimpleDenseModel(vocab_size=64, hidden_size=32, num_layers=2)
         trainer2 = DistillationTrainer(
-            teacher=tiny_teacher, student=student2,
-            config=cfg, train_dataset=ds, output_dir=tmp_path / "resumed",
+            teacher=tiny_teacher,
+            student=student2,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path / "resumed",
             resume_from_checkpoint=ckpt_dirs[0],
         )
         metrics2 = trainer2.train()
@@ -525,16 +582,27 @@ class TestDistillationTrainer:
     def test_teacher_parameters_frozen(self, tiny_teacher, tiny_student, tmp_path):
         """Teacher weights must not change during training."""
         teacher_weight_before = tiny_teacher.embed.weight.data.clone()
-        cfg = DistillationConfig.from_dict({
-            "teacher_model": "test",
-            "training": {"epochs": 1, "max_steps": 2, "batch_size": 1,
-                         "save_every_steps": 100, "eval_every_steps": 100, "deepspeed_stage": 0},
-            "data": {"synthetic_samples": 0},
-        })
+        cfg = DistillationConfig.from_dict(
+            {
+                "teacher_model": "test",
+                "training": {
+                    "epochs": 1,
+                    "max_steps": 2,
+                    "batch_size": 1,
+                    "save_every_steps": 100,
+                    "eval_every_steps": 100,
+                    "deepspeed_stage": 0,
+                },
+                "data": {"synthetic_samples": 0},
+            }
+        )
         ds = self._make_tiny_dataset()
         trainer = DistillationTrainer(
-            teacher=tiny_teacher, student=tiny_student,
-            config=cfg, train_dataset=ds, output_dir=tmp_path,
+            teacher=tiny_teacher,
+            student=tiny_student,
+            config=cfg,
+            train_dataset=ds,
+            output_dir=tmp_path,
         )
         trainer.train()
         assert torch.allclose(tiny_teacher.embed.weight.data, teacher_weight_before)
@@ -547,14 +615,16 @@ class TestDistillationTrainer:
 
 class TestDistillationMethod:
     def test_registry_lookup(self):
-        from vipym.compression.registry import CompressionRegistry
         import vipym.distillation  # ensure registration  # noqa: F401
+        from vipym.compression.registry import CompressionRegistry
+
         method_cls = CompressionRegistry.get("distillation")
         assert method_cls is not None
 
     def test_registry_alias(self):
-        from vipym.compression.registry import CompressionRegistry
         import vipym.distillation  # noqa: F401
+        from vipym.compression.registry import CompressionRegistry
+
         assert CompressionRegistry.get("distill_moe_to_dense") is not None
 
     def test_compress_returns_artifact(self, tiny_teacher, tmp_path):
@@ -565,8 +635,14 @@ class TestDistillationMethod:
             model=tiny_teacher,
             tokenizer=None,
             output_dir=tmp_path / "distil_out",
-            training={"epochs": 1, "max_steps": 2, "batch_size": 1,
-                       "save_every_steps": 100, "eval_every_steps": 100, "deepspeed_stage": 0},
+            training={
+                "epochs": 1,
+                "max_steps": 2,
+                "batch_size": 1,
+                "save_every_steps": 100,
+                "eval_every_steps": 100,
+                "deepspeed_stage": 0,
+            },
             data={"synthetic_samples": 0, "execution_filter": False},
             student={"size": "tiny", "architecture": "llama"},
         )
@@ -577,12 +653,20 @@ class TestDistillationMethod:
 
     def test_compress_artifact_output_path_exists(self, tiny_teacher, tmp_path):
         from vipym.distillation.method import DistillationMethod
+
         method = DistillationMethod()
         artifact = method.compress(
-            model=tiny_teacher, tokenizer=None,
+            model=tiny_teacher,
+            tokenizer=None,
             output_dir=tmp_path / "distil_out2",
-            training={"epochs": 1, "max_steps": 1, "batch_size": 1,
-                       "save_every_steps": 100, "eval_every_steps": 100, "deepspeed_stage": 0},
+            training={
+                "epochs": 1,
+                "max_steps": 1,
+                "batch_size": 1,
+                "save_every_steps": 100,
+                "eval_every_steps": 100,
+                "deepspeed_stage": 0,
+            },
             data={"synthetic_samples": 0, "execution_filter": False},
             student={"size": "tiny"},
         )
@@ -590,5 +674,6 @@ class TestDistillationMethod:
 
     def test_method_name_includes_size(self):
         from vipym.distillation.method import DistillationMethod
+
         m = DistillationMethod(student_config={"size": "32b"})
         assert "32b" in m.name

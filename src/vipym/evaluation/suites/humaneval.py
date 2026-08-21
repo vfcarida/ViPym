@@ -6,8 +6,6 @@ Supports single-sample and multi-sample temperature generation.
 
 from __future__ import annotations
 
-import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -15,7 +13,7 @@ from vipym.core.logger import get_logger
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
 from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
-from vipym.evaluation.scoring import calculate_pass_at_k_metrics, compute_pass_at_k
+from vipym.evaluation.scoring import calculate_pass_at_k_metrics
 from vipym.interfaces.evaluation import (
     BenchmarkTask,
     EvaluationSuite,
@@ -315,7 +313,9 @@ class HumanEvalSuite(EvaluationSuite):
             tasks = self.load_tasks(limit=task_limit)
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
 

@@ -8,8 +8,7 @@ Calculates:
 
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
@@ -131,7 +130,12 @@ class EnterpriseWorkloadConfig:
 
     @property
     def total_monthly_tokens(self) -> int:
-        return self.developers * self.requests_per_dev_per_day * self.avg_tokens_per_request * self.working_days_per_month
+        return (
+            self.developers
+            * self.requests_per_dev_per_day
+            * self.avg_tokens_per_request
+            * self.working_days_per_month
+        )
 
     @property
     def monthly_prompt_tokens(self) -> int:
@@ -233,7 +237,9 @@ class DeploymentCostModel:
         self_hosted_annual = self_hosted_monthly_spend * 12.0
 
         annual_savings = max(0.0, api_annual - self_hosted_annual)
-        savings_pct = ((api_annual - self_hosted_annual) / api_annual * 100.0) if api_annual > 0 else 0.0
+        savings_pct = (
+            ((api_annual - self_hosted_annual) / api_annual * 100.0) if api_annual > 0 else 0.0
+        )
 
         return {
             "baseline_api": baseline_api_name,
@@ -265,7 +271,12 @@ class DeploymentCostModel:
                     "monthly_spend_usd": monthly_cost,
                     "annual_spend_usd": monthly_cost * 12.0,
                     "savings_vs_claude_pct": (
-                        (1.0 - monthly_cost / self.project_commercial_api_monthly_spend("claude_sonnet")) * 100.0
+                        (
+                            1.0
+                            - monthly_cost
+                            / self.project_commercial_api_monthly_spend("claude_sonnet")
+                        )
+                        * 100.0
                     ),
                 }
             )
@@ -273,7 +284,11 @@ class DeploymentCostModel:
         # 2. Add compressed self-hosted variants
         claude_monthly = self.project_commercial_api_monthly_spend("claude_sonnet")
         for v in variants_cost:
-            savings = ((1.0 - v.monthly_enterprise_spend_usd / claude_monthly) * 100.0) if claude_monthly > 0 else 0.0
+            savings = (
+                ((1.0 - v.monthly_enterprise_spend_usd / claude_monthly) * 100.0)
+                if claude_monthly > 0
+                else 0.0
+            )
             rows.append(
                 {
                     "name": v.variant_name,

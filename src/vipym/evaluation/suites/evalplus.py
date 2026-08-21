@@ -7,8 +7,6 @@ to catch false positives, brittle edge cases, and contract violations.
 
 from __future__ import annotations
 
-import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -16,7 +14,6 @@ from vipym.core.logger import get_logger
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
 from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
-from vipym.evaluation.scoring import calculate_pass_at_k_metrics
 from vipym.evaluation.suites.humaneval import _CANONICAL_HUMANEVAL_PROBLEMS
 from vipym.evaluation.suites.mbpp import _CANONICAL_MBPP_PROBLEMS
 from vipym.interfaces.evaluation import (
@@ -176,12 +173,16 @@ class HumanEvalPlusSuite(EvaluationSuite):
 
         # 1. Run base tests
         base_test = task.metadata.get("base_test", task.test_code)
-        base_harness = f"{clean_code}\n\n{base_test}\n\nif __name__ == '__main__':\n    check({entry_point})\n"
+        base_harness = (
+            f"{clean_code}\n\n{base_test}\n\nif __name__ == '__main__':\n    check({entry_point})\n"
+        )
         base_res = sandbox_runner.execute_in_sandbox(base_harness, timeout_sec=task.timeout_seconds)
 
         # 2. Run enhanced plus tests
         plus_test = task.metadata.get("plus_test", task.test_code)
-        plus_harness = f"{clean_code}\n\n{plus_test}\n\nif __name__ == '__main__':\n    check({entry_point})\n"
+        plus_harness = (
+            f"{clean_code}\n\n{plus_test}\n\nif __name__ == '__main__':\n    check({entry_point})\n"
+        )
         plus_res = sandbox_runner.execute_in_sandbox(plus_harness, timeout_sec=task.timeout_seconds)
 
         return TaskResult(
@@ -233,7 +234,9 @@ class HumanEvalPlusSuite(EvaluationSuite):
             tasks = self.load_tasks(limit=task_limit)
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
 
@@ -400,7 +403,9 @@ class MBPPPlusSuite(EvaluationSuite):
             tasks = self.load_tasks(limit=task_limit)
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
 
@@ -465,9 +470,13 @@ class EvalPlusSuite(EvaluationSuite):
         self.timeout_per_task = timeout_per_task
         self.parallel_tasks = parallel_tasks
         if variant.lower() in ("mbpp", "mbppplus", "mbpp_plus"):
-            self._underlying = MBPPPlusSuite(timeout_per_task=timeout_per_task, parallel_tasks=parallel_tasks)
+            self._underlying = MBPPPlusSuite(
+                timeout_per_task=timeout_per_task, parallel_tasks=parallel_tasks
+            )
         else:
-            self._underlying = HumanEvalPlusSuite(timeout_per_task=timeout_per_task, parallel_tasks=parallel_tasks)
+            self._underlying = HumanEvalPlusSuite(
+                timeout_per_task=timeout_per_task, parallel_tasks=parallel_tasks
+            )
 
     @property
     def name(self) -> str:

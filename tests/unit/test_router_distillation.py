@@ -17,7 +17,6 @@ from vipym.compression.moe.router_distillation import (
     run_router_distillation,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -103,12 +102,16 @@ class TestRouterDistillationConfig:
 class TestPrivateHelpers:
     def test_make_calib_hidden_shape(self):
         teacher_target = torch.softmax(torch.randn(64, 4), dim=-1)
-        h = _make_calib_hidden(teacher_target, hidden_dim=32, n_samples=64, device=torch.device("cpu"))
+        h = _make_calib_hidden(
+            teacher_target, hidden_dim=32, n_samples=64, device=torch.device("cpu")
+        )
         assert h.shape == (64, 32)
 
     def test_make_calib_hidden_no_nan(self):
         teacher_target = torch.softmax(torch.randn(64, 4), dim=-1)
-        h = _make_calib_hidden(teacher_target, hidden_dim=32, n_samples=64, device=torch.device("cpu"))
+        h = _make_calib_hidden(
+            teacher_target, hidden_dim=32, n_samples=64, device=torch.device("cpu")
+        )
         assert not torch.isnan(h).any()
 
     def test_compute_utilisation_ratio_uniform(self):
@@ -139,13 +142,17 @@ class TestPrivateHelpers:
 class TestDistilRouter:
     def test_returns_result_instance(self, small_router, teacher_logits):
         cfg = RouterDistillationConfig(steps=10, log_every=5)
-        result = distil_router(student_router=small_router, teacher_logits=teacher_logits, config=cfg)
+        result = distil_router(
+            student_router=small_router, teacher_logits=teacher_logits, config=cfg
+        )
         assert isinstance(result, RouterDistillationResult)
 
     def test_loss_decreases_over_training(self, small_router, teacher_logits):
         """Training loss should generally decrease (allow +5% wiggle)."""
         cfg = RouterDistillationConfig(steps=50, log_every=10)
-        result = distil_router(student_router=small_router, teacher_logits=teacher_logits, config=cfg)
+        result = distil_router(
+            student_router=small_router, teacher_logits=teacher_logits, config=cfg
+        )
         # Average of first 10 vs last 10 steps
         early = sum(result.loss_history[:10]) / 10
         late = sum(result.loss_history[-10:]) / 10
@@ -154,17 +161,20 @@ class TestDistilRouter:
     def test_converged_flag(self, small_router, teacher_logits):
         # Use more steps so the optimiser has time to settle
         cfg = RouterDistillationConfig(steps=80, log_every=20)
-        result = distil_router(student_router=small_router, teacher_logits=teacher_logits, config=cfg)
+        result = distil_router(
+            student_router=small_router, teacher_logits=teacher_logits, config=cfg
+        )
         # Allow up to 5% above initial — stochastic mini-batch can cause noise spikes
         assert result.final_loss <= result.initial_loss * 1.05, (
             f"Loss diverged badly: {result.initial_loss:.4f} → {result.final_loss:.4f}"
         )
 
-
     def test_loss_history_length(self, small_router, teacher_logits):
         steps = 25
         cfg = RouterDistillationConfig(steps=steps, log_every=5)
-        result = distil_router(student_router=small_router, teacher_logits=teacher_logits, config=cfg)
+        result = distil_router(
+            student_router=small_router, teacher_logits=teacher_logits, config=cfg
+        )
         assert len(result.loss_history) == steps
 
     def test_elapsed_seconds_positive(self, small_router, teacher_logits):
@@ -189,7 +199,15 @@ class TestDistilRouter:
         cfg = RouterDistillationConfig(steps=5)
         result = distil_router(small_router, teacher_logits, cfg)
         d = result.to_dict()
-        for key in ("steps_run", "elapsed_seconds", "initial_loss", "final_loss", "converged", "utilisation_ratio", "load_balanced"):
+        for key in (
+            "steps_run",
+            "elapsed_seconds",
+            "initial_loss",
+            "final_loss",
+            "converged",
+            "utilisation_ratio",
+            "load_balanced",
+        ):
             assert key in d, f"Missing key: {key}"
 
 
@@ -240,7 +258,9 @@ class TestRunRouterDistillation:
 
     def test_load_balance_flag(self, small_router, teacher_router, calibration_hidden):
         """load_balanced should be True for well-trained router."""
-        cfg = RouterDistillationConfig(steps=50, calibration_samples=128, max_utilisation_ratio=100.0)
+        cfg = RouterDistillationConfig(
+            steps=50, calibration_samples=128, max_utilisation_ratio=100.0
+        )
         result = run_router_distillation(
             student_router=small_router,
             teacher_router=teacher_router,
@@ -259,6 +279,7 @@ class TestRunRouterDistillation:
 
 class _MiniMoEBlock(nn.Module):
     """Minimal MoE block with gate + experts for integration testing."""
+
     def __init__(self, num_experts: int = 6, hidden: int = 32):
         super().__init__()
         self.gate = nn.Linear(hidden, num_experts, bias=False)
@@ -275,6 +296,7 @@ class TestPruningWithDistillation:
     def _build_model_metadata(self):
         from vipym.core.constants import ComputeArchitecture, SupportedDtype
         from vipym.interfaces.model import ModelMetadata
+
         return ModelMetadata(
             model_id="mini-moe",
             architecture_type=ComputeArchitecture.MOE,

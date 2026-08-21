@@ -70,7 +70,7 @@ class RouterDistillationConfig:
     log_every: int = 100
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "RouterDistillationConfig":
+    def from_dict(cls, d: dict[str, Any]) -> RouterDistillationConfig:
         """Build from a plain dict (e.g. parsed from YAML)."""
         known = {f for f in cls.__dataclass_fields__}  # type: ignore[attr-defined]
         return cls(**{k: v for k, v in d.items() if k in known})
@@ -92,7 +92,7 @@ class RouterDistillationResult:
     converged: bool
     loss_history: list[float] = field(default_factory=list)
     utilisation_ratio: float = 1.0  # max / min expert load
-    load_balanced: bool = True      # True if ratio < config.max_utilisation_ratio
+    load_balanced: bool = True  # True if ratio < config.max_utilisation_ratio
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -175,8 +175,8 @@ def distil_router(
 
     for step in range(cfg.steps):
         idx = torch.randint(0, n_samples, (batch_size,), device=dev)
-        h_batch = calib_hidden[idx]          # [B, hidden_dim]
-        t_batch = teacher_target[idx]        # [B, E_retained]
+        h_batch = calib_hidden[idx]  # [B, hidden_dim]
+        t_batch = teacher_target[idx]  # [B, E_retained]
 
         optimizer.zero_grad(set_to_none=True)
         student_logits = student_router(h_batch)  # [B, E_retained]

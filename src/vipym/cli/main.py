@@ -85,7 +85,9 @@ def run_experiment(
     """Run an end-to-end compression, benchmark evaluation, and reporting experiment."""
     target_path = config_path or config
     if not target_path:
-        console.print("[bold red]Error:[/bold red] Please specify an experiment config path or recipe (e.g. `vipym run recipes/se-lifecycle-demo.yaml`)")
+        console.print(
+            "[bold red]Error:[/bold red] Please specify an experiment config path or recipe (e.g. `vipym run recipes/se-lifecycle-demo.yaml`)"
+        )
         raise typer.Exit(code=1)
 
     target_artifacts = output or artifacts_dir
@@ -99,7 +101,9 @@ def run_experiment(
     console.print(f"Manifest ID: [cyan]{res.manifest_id}[/cyan]")
     console.print(f"Total Duration: [yellow]{res.total_duration_sec:.2f}s[/yellow]")
     console.print(f"Total Est. Cost: [yellow]${res.total_cost_usd:.4f}[/yellow]")
-    console.print(f"Report Dashboard: [magenta]{res.generated_report_files.get('html') or res.generated_report_files.get('root_report_html')}[/magenta]")
+    console.print(
+        f"Report Dashboard: [magenta]{res.generated_report_files.get('html') or res.generated_report_files.get('root_report_html')}[/magenta]"
+    )
 
 
 @app.command("baseline")
@@ -399,7 +403,9 @@ def run_recipe_cmd(
 @app.command("studio")
 def studio_cmd(
     port: int = typer.Option(8080, "--port", "-p", help="Port to run ViPym Studio"),
-    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host binding address (defaults to localhost)"),
+    host: str = typer.Option(
+        "127.0.0.1", "--host", "-h", help="Host binding address (defaults to localhost)"
+    ),
     artifacts_dir: Path = typer.Option(
         Path("./artifacts"), "--artifacts-dir", "-a", help="Artifacts directory"
     ),
@@ -409,9 +415,7 @@ def studio_cmd(
     token: str | None = typer.Option(
         None, "--token", "-t", help="Custom Bearer auth token (defaults to ~/.vipym/studio-token)"
     ),
-    rate_limit: int = typer.Option(
-        100, "--rate-limit", help="Max requests per minute per token"
-    ),
+    rate_limit: int = typer.Option(100, "--rate-limit", help="Max requests per minute per token"),
     cors_origins: list[str] | None = typer.Option(
         None, "--cors-origin", help="Allowed CORS origins"
     ),
@@ -439,9 +443,11 @@ def studio_cmd(
 
     console.print(f"[bold green]ViPym Studio running at:[/bold green] [bold cyan]{url}[/bold cyan]")
     console.print(f"Artifacts workspace: [magenta]{artifacts_dir.resolve()}[/magenta]")
-    console.print(f"Mode: [bold {'yellow' if read_only else 'green'}]{'READ-ONLY' if read_only else 'FULL ACCESS'}[/bold]")
+    console.print(
+        f"Mode: [bold {'yellow' if read_only else 'green'}]{'READ-ONLY' if read_only else 'FULL ACCESS'}[/bold]"
+    )
     console.print(f"Auth Token: [bold yellow]{active_token}[/bold yellow]")
-    console.print(f"Token Path: [cyan]~/.vipym/studio-token[/cyan]")
+    console.print("Token Path: [cyan]~/.vipym/studio-token[/cyan]")
     console.print(f"Health Probe: [cyan]{url}/health[/cyan]")
     console.print(f"Rate Limit: [cyan]{rate_limit} req/min[/cyan]")
     console.print("Press [bold red]Ctrl+C[/bold red] to stop server.\n")
@@ -473,11 +479,21 @@ app.add_typer(gate_app, name="gate")
 
 @gate_app.command("run")
 def gate_run_cmd(
-    config_path: Path = typer.Option(..., "--config", "-c", help="Path to gates YAML configuration"),
-    model_path: Path = typer.Option(..., "--model", "-m", help="Path or ID of compressed model to evaluate"),
-    teacher_path: Path | None = typer.Option(None, "--teacher", "-t", help="Path or ID of uncompressed teacher model"),
-    gate_name: str = typer.Option("se_production", "--gate", "-g", help="Name of the gate to evaluate"),
-    report_path: Path | None = typer.Option(None, "--report", "-r", help="Path to save Markdown gate report"),
+    config_path: Path = typer.Option(
+        ..., "--config", "-c", help="Path to gates YAML configuration"
+    ),
+    model_path: Path = typer.Option(
+        ..., "--model", "-m", help="Path or ID of compressed model to evaluate"
+    ),
+    teacher_path: Path | None = typer.Option(
+        None, "--teacher", "-t", help="Path or ID of uncompressed teacher model"
+    ),
+    gate_name: str = typer.Option(
+        "se_production", "--gate", "-g", help="Name of the gate to evaluate"
+    ),
+    report_path: Path | None = typer.Option(
+        None, "--report", "-r", help="Path to save Markdown gate report"
+    ),
 ) -> None:
     """Run automated post-compression evaluation gate and output PASS/FAIL verdict."""
     from vipym.gates.config import GatesConfig
@@ -531,10 +547,14 @@ def gate_run_cmd(
             console.print(f"[bold green]Report saved to:[/bold green] {report_path.resolve()}")
 
         if not verdict.passed:
-            console.print(f"[bold red][FAIL] Model failed evaluation gate '{gate_name}'.[/bold red]")
+            console.print(
+                f"[bold red][FAIL] Model failed evaluation gate '{gate_name}'.[/bold red]"
+            )
             raise typer.Exit(code=1)
 
-        console.print(f"[bold green][PASS] Model successfully passed evaluation gate '{gate_name}'![/bold green]")
+        console.print(
+            f"[bold green][PASS] Model successfully passed evaluation gate '{gate_name}'![/bold green]"
+        )
         raise typer.Exit(code=0)
 
     except typer.Exit:
@@ -542,6 +562,44 @@ def gate_run_cmd(
     except Exception as e:
         console.print(f"[bold red][ERROR] Gate evaluation failed with error:[/bold red] {e}")
         raise typer.Exit(code=2) from e
+
+
+@app.command("compare")
+def compare_cmd(
+    experiment_dirs: list[Path] = typer.Argument(
+        ...,
+        help="Paths to two or more experiment result directories containing manifest.json",
+    ),
+    output: Path = typer.Option(
+        Path("./comparison.html"),
+        "--output",
+        "-o",
+        help="Output HTML dashboard path",
+    ),
+) -> None:
+    """Compare multiple experiment runs, Pareto frontiers, and ROI metrics."""
+    from vipym.analysis.comparator import ExperimentComparator
+
+    if len(experiment_dirs) < 2:
+        console.print(
+            "[bold red]Please provide at least 2 experiment directories to compare.[/bold red]"
+        )
+        raise typer.Exit(code=1)
+
+    comparator = ExperimentComparator(experiment_dirs)
+    if not comparator.summaries:
+        console.print(
+            "[bold red]No valid experiment runs found in provided directories.[/bold red]"
+        )
+        raise typer.Exit(code=1)
+
+    table = comparator.format_rich_table()
+    console.print(table)
+
+    out_file = comparator.generate_html_report(output)
+    console.print(
+        f"\n[bold green]Comparison HTML dashboard saved to:[/bold green] [cyan]{out_file.resolve()}[/cyan]"
+    )
 
 
 if __name__ == "__main__":

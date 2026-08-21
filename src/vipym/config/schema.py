@@ -153,6 +153,9 @@ class EvaluationConfig(BaseModel):
         default=False,
         description="Explicit opt-in to allow non-containerized local subprocess execution when Docker is unavailable",
     )
+    max_workers: int = Field(
+        default=1, ge=1, description="Maximum concurrent worker threads for sandbox evaluation"
+    )
 
 
 class CostAssumptionConfig(BaseModel):

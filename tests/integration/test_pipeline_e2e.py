@@ -76,7 +76,9 @@ class LocalModelAdapter(ModelAdapter):
             num_attention_heads=4,
         )
 
-    def load_for_compression(self, model_id_or_path: str, revision: str = "main", **kwargs) -> torch.nn.Module:
+    def load_for_compression(
+        self, model_id_or_path: str, revision: str = "main", **kwargs
+    ) -> torch.nn.Module:
         return GPT2LMHeadModel.from_pretrained(self.model_dir)
 
     def get_tokenizer(self, model_id_or_path: str, revision: str = "main") -> Any:
@@ -85,7 +87,9 @@ class LocalModelAdapter(ModelAdapter):
 
 @pytest.mark.integration
 class TestPipelineE2E:
-    def test_full_dag_prune_quantize_and_evaluate_e2e(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_full_dag_prune_quantize_and_evaluate_e2e(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """End-to-end test: Prune -> Quantize -> Evaluate on 5 HumanEval tasks."""
         monkeypatch.setenv("VIPYM_ALLOW_UNSAFE", "1")
         source_dir = tmp_path / "pipeline_gpt2_source"

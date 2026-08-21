@@ -30,9 +30,8 @@ from vipym.evaluation.suites.evalplus import (
 )
 from vipym.evaluation.suites.humaneval import HumanEvalSuite
 from vipym.evaluation.suites.mbpp import LiveCodeBenchSuite, MBPPSuite
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuiteResult, TaskResult
+from vipym.interfaces.evaluation import EvaluationSuiteResult, TaskResult
 from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
-
 
 # ============================================================
 # Fixtures & Mocks
@@ -60,7 +59,11 @@ class MockInferenceBackend(InferenceBackend):
         pass
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
-        text = self.response_generator(request) if callable(self.response_generator) else str(self.response_generator)
+        text = (
+            self.response_generator(request)
+            if callable(self.response_generator)
+            else str(self.response_generator)
+        )
         return GenerationResponse(
             generated_text=text,
             prompt_tokens=len(request.prompt) // 4,

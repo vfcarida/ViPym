@@ -122,9 +122,7 @@ class GPTQCompressionMethod(CompressionMethod):
             from datasets import load_dataset
 
             if dataset_name.lower() in ("wikitext2", "wikitext-2", "wikitext"):
-                ds = load_dataset(
-                    "wikitext", "wikitext-2-raw-v1", split="train"
-                )
+                ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
                 texts = [t for t in ds["text"] if len(t.strip()) > 50][:num_samples]
             elif dataset_name.lower() in ("c4", "c4-en"):
                 ds = load_dataset("allenai/c4", "en", split="train", streaming=True)

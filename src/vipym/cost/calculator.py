@@ -68,3 +68,11 @@ class CloudCostCalculator(CostModel):
             cost_per_1m_output_tokens_usd=round(cost_per_1m_out, 4),
             cost_per_successful_task_usd=round(cost_per_task, 4),
         )
+
+    def compute_serving_cost_per_1m_tokens(self, throughput_tokens_per_sec: float) -> float:
+        """Estimate serving cost per 1M generated tokens based on GPU hourly rate and throughput."""
+        hourly_rate = self.config.aws_ec2_hourly_rate
+        if throughput_tokens_per_sec <= 0:
+            return 2.50
+        tokens_per_hour = throughput_tokens_per_sec * 3600.0
+        return max(0.01, round((hourly_rate / tokens_per_hour) * 1_000_000, 4))

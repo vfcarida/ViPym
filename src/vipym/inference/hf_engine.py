@@ -52,6 +52,7 @@ class HuggingFaceInferenceBackend(InferenceBackend):
                 f"Standard AutoModel load raised ({err}), attempting fallback without quantization hook..."
             )
             from transformers import AutoConfig
+
             cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
             if hasattr(cfg, "quantization_config"):
                 delattr(cfg, "quantization_config")
@@ -101,12 +102,19 @@ class HuggingFaceInferenceBackend(InferenceBackend):
             total_time_ms=total_time,
         )
 
+    def health_check(self) -> bool:
+        """Verify model and tokenizer readiness."""
+        return bool(self.model is not None and self.tokenizer is not None)
+
     async def generate_async(self, request: GenerationRequest) -> GenerationResponse:
         return await asyncio.to_thread(self.generate, request)
 
     def stop(self) -> None:
         self.model = None
         self.tokenizer = None
+        from vipym.utils.resilience import safe_cuda_memory_cleanup
+
+        safe_cuda_memory_cleanup()
 
 
 class SGLangInferenceBackend(InferenceBackend):

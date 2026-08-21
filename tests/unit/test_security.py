@@ -134,4 +134,3 @@ def test_docker_execution_when_available(monkeypatch):
     assert "--memory" in called_cmd
     assert "--cpus" in called_cmd
     assert "--read-only" in called_cmd
-

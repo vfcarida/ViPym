@@ -28,9 +28,8 @@ from vipym.evaluation.suites.testgeneval import (
     TestGenEvalSuite,
     generate_mutants,
 )
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuiteResult, TaskResult
+from vipym.interfaces.evaluation import EvaluationSuiteResult, TaskResult
 from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
-
 
 # ============================================================
 # Fixtures & Mocks
@@ -58,7 +57,11 @@ class MockInferenceBackend(InferenceBackend):
         pass
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
-        text = self.response_generator(request) if callable(self.response_generator) else str(self.response_generator)
+        text = (
+            self.response_generator(request)
+            if callable(self.response_generator)
+            else str(self.response_generator)
+        )
         return GenerationResponse(
             generated_text=text,
             prompt_tokens=len(request.prompt) // 4,
@@ -209,7 +212,9 @@ class TestCRQBenchSuite:
         suite = CRQBenchSuite()
         tasks = suite.load_tasks(limit=2)
         backend = MockInferenceBackend(
-            response_generator=lambda req: "Race condition hazard. Use a mutex lock. Suggest: with lock: pass"
+            response_generator=lambda req: (
+                "Race condition hazard. Use a mutex lock. Suggest: with lock: pass"
+            )
         )
 
         suite_res = suite.evaluate_suite(backend, tasks=tasks)
@@ -228,11 +233,11 @@ class TestSECompositeCalculator:
     def test_full_composite_calculation(self):
         calc = SECompositeCalculator()
         scores = {
-            "swebench": 0.40,      # 0.40 * 0.30 = 0.12
-            "aider_edit": 0.80,    # 0.80 * 0.25 = 0.20
+            "swebench": 0.40,  # 0.40 * 0.30 = 0.12
+            "aider_edit": 0.80,  # 0.80 * 0.25 = 0.20
             "bigcodebench": 0.60,  # 0.60 * 0.20 = 0.12
-            "testgen": 0.70,       # 0.70 * 0.15 = 0.105
-            "code_review": 0.50,   # 0.50 * 0.10 = 0.05
+            "testgen": 0.70,  # 0.70 * 0.15 = 0.105
+            "code_review": 0.50,  # 0.50 * 0.10 = 0.05
         }
         # Total = 0.12 + 0.20 + 0.12 + 0.105 + 0.05 = 0.595
         report = calc.compute(scores)
@@ -359,7 +364,9 @@ class TestBenchmarkRunnerSuite:
     def test_benchmark_runner_runs_crqbench(self, sandbox_runner):
         runner = BenchmarkRunner(sandbox_runner=sandbox_runner)
         backend = MockInferenceBackend(
-            response_generator=lambda req: "Race condition concurrency error. Line 13 lock needed. Suggest: with lock: pass"
+            response_generator=lambda req: (
+                "Race condition concurrency error. Line 13 lock needed. Suggest: with lock: pass"
+            )
         )
 
         result = runner.run_suite("crqbench", backend=backend, task_limit=1)

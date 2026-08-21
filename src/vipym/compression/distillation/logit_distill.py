@@ -5,6 +5,7 @@
     engine use ``vipym.distillation`` (P007).  The ``LogitDistillationMethod``
     class below is kept for backwards compatibility only.
 """
+
 import warnings as _warnings
 
 _warnings.warn(

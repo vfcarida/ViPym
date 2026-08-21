@@ -208,7 +208,11 @@ class SWEBenchAgent:
 
             if action is None or action.action_type == "submit_patch":
                 # Check if patch is embedded in submit_patch or in raw response
-                patch_cand = action.argument if (action and action.argument) else self.extract_patch(response_text)
+                patch_cand = (
+                    action.argument
+                    if (action and action.argument)
+                    else self.extract_patch(response_text)
+                )
                 if patch_cand.strip():
                     final_patch = patch_cand
                 elif turn_idx == self.config.max_turns - 1:
@@ -219,7 +223,9 @@ class SWEBenchAgent:
                         turn_index=turn_idx,
                         thought=thought,
                         action=action,
-                        observation=AgentObservation(output="Patch submitted" if final_patch else "No patch found"),
+                        observation=AgentObservation(
+                            output="Patch submitted" if final_patch else "No patch found"
+                        ),
                         raw_response=response_text,
                     )
                 )
@@ -240,7 +246,9 @@ class SWEBenchAgent:
 
             # Update conversation history
             conversation.append({"role": "assistant", "content": response_text})
-            conversation.append({"role": "user", "content": f"<observation>\n{observation.output}\n</observation>"})
+            conversation.append(
+                {"role": "user", "content": f"<observation>\n{observation.output}\n</observation>"}
+            )
 
             # Check context window
             conversation = self._truncate_conversation(conversation)
@@ -305,7 +313,9 @@ class SWEBenchAgent:
     def _parse_action(self, text: str) -> tuple[str, AgentAction | None]:
         """Extract thought and structured tool action from model output."""
         # 1. Check for <submit_patch>...</submit_patch>
-        patch_match = re.search(r"<submit_patch>(.*?)</submit_patch>", text, re.DOTALL | re.IGNORECASE)
+        patch_match = re.search(
+            r"<submit_patch>(.*?)</submit_patch>", text, re.DOTALL | re.IGNORECASE
+        )
         if patch_match:
             thought = text[: patch_match.start()].strip()
             patch_content = patch_match.group(1).strip()
@@ -329,11 +339,15 @@ class SWEBenchAgent:
             )
 
         # 3. Check for <list_files dir="..."/>
-        list_match = re.search(r'<list_files(?:\s+dir=["\']([^"\']*)["\'])?\s*/?>', text, re.IGNORECASE)
+        list_match = re.search(
+            r'<list_files(?:\s+dir=["\']([^"\']*)["\'])?\s*/?>', text, re.IGNORECASE
+        )
         if list_match:
             thought = text[: list_match.start()].strip()
             dir_path = list_match.group(1) or "."
-            return thought, AgentAction(action_type="list_files", argument=dir_path, params={"dir": dir_path})
+            return thought, AgentAction(
+                action_type="list_files", argument=dir_path, params={"dir": dir_path}
+            )
 
         # 4. Check for <search_dir query="..." dir="..."/>
         search_match = re.search(
@@ -432,7 +446,7 @@ class SWEBenchAgent:
         lines = content.splitlines()
         s = max(1, start or 1) - 1
         e = min(len(lines), end or len(lines))
-        selected_lines = [f"{i+1}: {line}" for i, line in enumerate(lines[s:e], start=s)]
+        selected_lines = [f"{i + 1}: {line}" for i, line in enumerate(lines[s:e], start=s)]
         return AgentObservation(output="\n".join(selected_lines), success=True)
 
     def _tool_list_files(
@@ -524,7 +538,9 @@ class SWEBenchAgent:
             if isinstance(out, str):
                 return out, len(out) // 4
             if hasattr(out, "generated_text"):
-                return out.generated_text, getattr(out, "completion_tokens", len(out.generated_text) // 4)
+                return out.generated_text, getattr(
+                    out, "completion_tokens", len(out.generated_text) // 4
+                )
 
         return "", 0
 
@@ -535,14 +551,18 @@ class SWEBenchAgent:
             return ""
 
         # 1. Try markdown code block with diff tag
-        diff_block_match = re.search(r"```(?:diff|patch)?\n(.*?)```", text, re.DOTALL | re.IGNORECASE)
+        diff_block_match = re.search(
+            r"```(?:diff|patch)?\n(.*?)```", text, re.DOTALL | re.IGNORECASE
+        )
         if diff_block_match:
             candidate = diff_block_match.group(1).strip()
             if "diff --git" in candidate or "--- a/" in candidate or "@@" in candidate:
                 return candidate
 
         # 2. Try <submit_patch> tags
-        xml_match = re.search(r"<submit_patch>(.*?)</submit_patch>", text, re.DOTALL | re.IGNORECASE)
+        xml_match = re.search(
+            r"<submit_patch>(.*?)</submit_patch>", text, re.DOTALL | re.IGNORECASE
+        )
         if xml_match:
             return xml_match.group(1).strip()
 

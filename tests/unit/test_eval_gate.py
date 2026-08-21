@@ -10,15 +10,13 @@ Test classes:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
 from vipym.cli.main import app
-from vipym.gates.config import GateThresholds, GatesConfig
-from vipym.gates.eval_gate import GateCheckResult, GateVerdict, QualityEvalGate
-
+from vipym.gates.config import GatesConfig, GateThresholds
+from vipym.gates.eval_gate import GateVerdict, QualityEvalGate
 
 # ============================================================
 # TestGateConfig
@@ -211,7 +209,9 @@ class TestGateMarkdownReport:
 class TestGateCLI:
     def test_cli_gate_run_pass(self, tmp_path: Path):
         cfg_file = tmp_path / "gates.yaml"
-        cfg_file.write_text("gates:\n  se_production:\n    min_se_composite: 0.65\n", encoding="utf-8")
+        cfg_file.write_text(
+            "gates:\n  se_production:\n    min_se_composite: 0.65\n", encoding="utf-8"
+        )
 
         runner = CliRunner()
         res = runner.invoke(
@@ -235,7 +235,9 @@ class TestGateCLI:
     def test_cli_gate_run_fail(self, tmp_path: Path):
         cfg_file = tmp_path / "strict_gates.yaml"
         # Require impossible 99.9% composite retention
-        cfg_file.write_text("gates:\n  se_production:\n    min_se_composite: 0.999\n", encoding="utf-8")
+        cfg_file.write_text(
+            "gates:\n  se_production:\n    min_se_composite: 0.999\n", encoding="utf-8"
+        )
 
         runner = CliRunner()
         res = runner.invoke(

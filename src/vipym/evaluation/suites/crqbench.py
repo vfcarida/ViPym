@@ -11,7 +11,7 @@ import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
@@ -72,7 +72,14 @@ _CRQ_SAMPLE_TASKS = [
             {
                 "line": 26,
                 "defect_type": "resource_leak",
-                "keywords": ["open", "close", "context manager", "with open", "leak", "file handle"],
+                "keywords": [
+                    "open",
+                    "close",
+                    "context manager",
+                    "with open",
+                    "leak",
+                    "file handle",
+                ],
                 "severity": "medium",
                 "description": "File opened with bare open() without closing or using 'with open(...) as f:', causing file descriptor leaks.",
                 "suggested_fix": "Use 'with open(filepath, \"r\") as f:' context manager.",
@@ -95,7 +102,14 @@ _CRQ_SAMPLE_TASKS = [
             {
                 "line": 16,
                 "defect_type": "security",
-                "keywords": ["sql injection", "parameterized", "f-string", "security", "sqli", "prepared statement"],
+                "keywords": [
+                    "sql injection",
+                    "parameterized",
+                    "f-string",
+                    "security",
+                    "sqli",
+                    "prepared statement",
+                ],
                 "severity": "critical",
                 "description": "Formatted raw SQL string introduces direct SQL injection vulnerability.",
                 "suggested_fix": "Revert to parameterized query cursor.execute(query, (username,)).",
@@ -277,7 +291,10 @@ class CRQBenchSuite(EvaluationSuite):
         for p in paragraphs:
             # Check if paragraph discusses a potential defect
             is_actionable = bool(
-                "```" in p or "suggest" in p.lower() or "use " in p.lower() or "replace" in p.lower()
+                "```" in p
+                or "suggest" in p.lower()
+                or "use " in p.lower()
+                or "replace" in p.lower()
             )
             comments.append(
                 ReviewComment(

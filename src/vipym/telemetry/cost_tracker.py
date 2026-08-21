@@ -7,7 +7,7 @@ and evaluates cost savings relative to commercial hosted LLM APIs (GPT-4o, Claud
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
@@ -109,7 +109,9 @@ class InferenceCostTracker:
 
         cost_per_1m = (hardware_cost / total_tokens * 1_000_000.0) if total_tokens > 0 else 0.0
         cost_per_1m_prompt = (
-            (hardware_cost / self.total_prompt_tokens * 1_000_000.0) if self.total_prompt_tokens > 0 else 0.0
+            (hardware_cost / self.total_prompt_tokens * 1_000_000.0)
+            if self.total_prompt_tokens > 0
+            else 0.0
         )
         cost_per_1m_comp = (
             (hardware_cost / self.total_completion_tokens * 1_000_000.0)

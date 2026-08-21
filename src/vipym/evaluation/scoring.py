@@ -11,8 +11,7 @@ and c is the number of samples that pass all unit tests.
 
 from __future__ import annotations
 
-import math
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def compute_pass_at_k(

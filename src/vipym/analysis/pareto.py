@@ -12,7 +12,6 @@ Computes multi-dimensional Pareto frontiers across:
 from __future__ import annotations
 
 import math
-from dataclasses import field
 from typing import Any
 
 import pydantic
@@ -59,8 +58,16 @@ class ParetoFrontierOptimizer:
         maximize_dimensions: list[str] | None = None,
         minimize_dimensions: list[str] | None = None,
     ) -> None:
-        self.maximize_dims = maximize_dimensions or ["quality_score", "throughput_tok_s", "compression_ratio"]
-        self.minimize_dims = minimize_dimensions or ["cost_per_1m_tokens", "latency_p50_ms", "peak_vram_gb"]
+        self.maximize_dims = maximize_dimensions or [
+            "quality_score",
+            "throughput_tok_s",
+            "compression_ratio",
+        ]
+        self.minimize_dims = minimize_dimensions or [
+            "cost_per_1m_tokens",
+            "latency_p50_ms",
+            "peak_vram_gb",
+        ]
 
     def dominates(self, p1: ParetoPoint, p2: ParetoPoint) -> bool:
         """Return True if p1 dominates p2 (p1 is at least as good in all dims and strictly better in at least one)."""
@@ -132,7 +139,7 @@ class ParetoFrontierOptimizer:
             return []
 
         fronts: list[list[ParetoPoint]] = [[]]
-        domination_count: dict[int, int] = {i: 0 for i in range(len(points))}
+        domination_count: dict[int, int] = dict.fromkeys(range(len(points)), 0)
         dominated_indices: dict[int, list[int]] = {i: [] for i in range(len(points))}
 
         for p_idx, p in enumerate(points):

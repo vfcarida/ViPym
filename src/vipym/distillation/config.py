@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Leaf configs
 # ---------------------------------------------------------------------------
@@ -128,7 +127,7 @@ class DistillationConfig:
     data: DataConfig = field(default_factory=DataConfig)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "DistillationConfig":
+    def from_dict(cls, d: dict[str, Any]) -> DistillationConfig:
         """Parse from a plain dict (e.g. the ``parameters`` block in a YAML stage).
 
         Ignores unknown top-level keys so forward-compat additions don't crash.
@@ -142,6 +141,7 @@ class DistillationConfig:
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dict for JSON/YAML export."""
         import dataclasses
+
         return dataclasses.asdict(self)
 
 
@@ -166,6 +166,7 @@ class TrainingMetrics:
 
     def to_dict(self) -> dict[str, Any]:
         import dataclasses
+
         return dataclasses.asdict(self)
 
 
@@ -177,5 +178,6 @@ class TrainingMetrics:
 def _filter_fields(dc_cls: type, d: dict[str, Any]) -> dict[str, Any]:
     """Return only the keys that exist as fields on *dc_cls*."""
     import dataclasses
+
     known = {f.name for f in dataclasses.fields(dc_cls)}
     return {k: v for k, v in d.items() if k in known}

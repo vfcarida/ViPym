@@ -21,9 +21,13 @@ class GateThresholds(pydantic.BaseModel):
     min_testgeneval_coverage: float = 0.60
     min_crqbench_precision: float = 0.40
     max_latency_p95_ms: float = 5000.0
-    max_quality_drop_any_suite: float = 0.50  # Max allowable quality drop (retention must be >= 50%)
+    max_quality_drop_any_suite: float = (
+        0.50  # Max allowable quality drop (retention must be >= 50%)
+    )
     suite_thresholds: dict[str, float] = pydantic.Field(default_factory=dict)
-    use_relative_scoring: bool = True  # True = compare against teacher baseline, False = absolute thresholds
+    use_relative_scoring: bool = (
+        True  # True = compare against teacher baseline, False = absolute thresholds
+    )
 
 
 class GatesConfig(pydantic.BaseModel):

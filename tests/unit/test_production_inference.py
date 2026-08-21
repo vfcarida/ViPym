@@ -26,7 +26,6 @@ from vipym.inference.batch import BatchInferenceRunner
 from vipym.inference.registry import InferenceRegistry
 from vipym.interfaces.inference import GenerationRequest, GenerationResponse
 
-
 # ============================================================
 # TestBaseInferenceBackend
 # ============================================================
@@ -73,7 +72,9 @@ class TestBaseInferenceBackend:
         model_dir = tmp_path / "custom_model"
         model_dir.mkdir()
         cfg = model_dir / "config.json"
-        cfg.write_text(json.dumps({"quantization_config": {"quant_method": "awq"}}), encoding="utf-8")
+        cfg.write_text(
+            json.dumps({"quantization_config": {"quant_method": "awq"}}), encoding="utf-8"
+        )
 
         assert auto_detect_quantization(model_dir) == "awq"
 

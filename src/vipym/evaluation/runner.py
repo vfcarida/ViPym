@@ -43,6 +43,7 @@ class BenchmarkRunner:
         else:
             self.sandbox = SandboxedCodeRunner()
 
+        self.evaluation_config = evaluation_config
         self.model_variant = model_variant
         self.telemetry_profiler = InferenceProfiler(
             model_variant=model_variant,
@@ -65,6 +66,11 @@ class BenchmarkRunner:
         task_limit: int | None = None,
     ) -> EvaluationSuiteResult:
         suite = EvaluationRegistry.get(suite_name)
+        if not backend.health_check():
+            raise RuntimeError(
+                f"Serving backend {backend.__class__.__name__} failed pre-execution health check."
+            )
+
         tasks = suite.load_tasks(limit=task_limit)
         logger.info(f"Evaluating suite '{suite.name}' ({suite.version}) with {len(tasks)} tasks")
 
@@ -72,16 +78,20 @@ class BenchmarkRunner:
         passed_count = 0
         compile_count = 0
 
-        for _idx, task in enumerate(tasks):
-            prompt = suite.format_prompt(task)
+        max_workers = (
+            self.evaluation_config.max_workers
+            if self.evaluation_config and hasattr(self.evaluation_config, "max_workers")
+            else 1
+        )
+
+        def _run_single(task_item):
+            prompt = suite.format_prompt(task_item)
             gen_req = GenerationRequest(
                 prompt=prompt,
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 top_p=top_p,
             )
-
-            # Instrument actual generation with real timing and telemetry
             t0 = time.perf_counter()
             resp = backend.generate(gen_req)
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
@@ -94,7 +104,7 @@ class BenchmarkRunner:
             )
 
             self.telemetry_profiler.record_request(
-                request_id=f"{suite.name}/{task.task_id}",
+                request_id=f"{suite.name}/{task_item.task_id}",
                 prompt_tokens=p_tok,
                 completion_tokens=c_tok,
                 latency_ms=elapsed_ms,
@@ -107,14 +117,27 @@ class BenchmarkRunner:
                 duration_seconds=elapsed_ms / 1000.0,
             )
 
-            # Evaluate solution in secure sandbox
-            res = suite.evaluate_response(task, resp.generated_text, self.sandbox)
-            task_results.append(res)
+            return suite.evaluate_response(task_item, resp.generated_text, self.sandbox)
 
-            if res.passed:
-                passed_count += 1
-            if res.compile_success:
-                compile_count += 1
+        if max_workers > 1 and len(tasks) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=min(max_workers, len(tasks))) as executor:
+                results = list(executor.map(_run_single, tasks))
+                for res in results:
+                    task_results.append(res)
+                    if res.passed:
+                        passed_count += 1
+                    if res.compile_success:
+                        compile_count += 1
+        else:
+            for task in tasks:
+                res = _run_single(task)
+                task_results.append(res)
+                if res.passed:
+                    passed_count += 1
+                if res.compile_success:
+                    compile_count += 1
 
         total = max(1, len(tasks))
         pass_at_1 = passed_count / total

@@ -39,7 +39,9 @@ class StudioWebSocketManager:
         """Register an active authenticated WebSocket client socket."""
         with self._lock:
             self._clients.add(client_sock)
-            logger.info(f"WebSocket client connected. Total active connections: {len(self._clients)}")
+            logger.info(
+                f"WebSocket client connected. Total active connections: {len(self._clients)}"
+            )
 
             # Replay recent events to newly connected client
             for event in self._event_history[-10:]:
@@ -56,7 +58,9 @@ class StudioWebSocketManager:
                 client_sock.close()
             except Exception:
                 pass
-            logger.info(f"WebSocket client disconnected. Remaining connections: {len(self._clients)}")
+            logger.info(
+                f"WebSocket client disconnected. Remaining connections: {len(self._clients)}"
+            )
 
     def subscribe(self, callback: Callable[[dict[str, Any]], None]) -> None:
         """Register a callback subscriber for progress events."""

@@ -41,7 +41,10 @@ class ExperimentRunSummary(pydantic.BaseModel):
     @property
     def status(self) -> ExecutionStatus:
         """Compatibility property for ExecutionStatus."""
-        if self.final_state in (ExperimentState.REPORT_COMPLETED, ExperimentState.ANALYSIS_COMPLETED):
+        if self.final_state in (
+            ExperimentState.REPORT_COMPLETED,
+            ExperimentState.ANALYSIS_COMPLETED,
+        ):
             return ExecutionStatus.COMPLETED
         elif self.final_state == ExperimentState.FAILED:
             return ExecutionStatus.FAILED
@@ -89,7 +92,11 @@ class ResumableExperimentRunner:
             experiment_id=self.config.experiment_id,
             model_name=self.config.model.id,
         )
-        emit_event("experiment_started", experiment_id=self.config.experiment_id, model=self.config.model.id)
+        emit_event(
+            "experiment_started",
+            experiment_id=self.config.experiment_id,
+            model=self.config.model.id,
+        )
         logger.info(
             f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume}, checkpoint={self.checkpoint_enabled})"
         )
@@ -174,13 +181,36 @@ class ResumableExperimentRunner:
                 metrics={"pass_at_1": self.checkpoint.baseline_score or 0.0},
             )
 
+            base_p50 = (
+                sum(s.summary_metrics.get("latency_p50_ms", 45.0) for s in baseline_suite_results)
+                / max(1, len(baseline_suite_results))
+                if baseline_suite_results
+                else 45.0
+            )
+            base_throughput = (
+                sum(s.summary_metrics.get("throughput_tok_s", 0.0) for s in baseline_suite_results)
+                / max(1, len(baseline_suite_results))
+                if baseline_suite_results
+                else 0.0
+            )
+            base_vram = (
+                max(
+                    (s.summary_metrics.get("peak_vram_gb", 0.0) for s in baseline_suite_results),
+                    default=0.0,
+                )
+                if baseline_suite_results
+                and any(s.summary_metrics.get("peak_vram_gb", 0.0) for s in baseline_suite_results)
+                else metadata.active_parameters * 2 / (1024**3)
+            )
+            base_cost = self.cost_calculator.compute_serving_cost_per_1m_tokens(base_throughput)
+
             baseline_point = ParetoPoint(
                 experiment_id=self.config.experiment_id,
                 configuration_name="Baseline",
                 quality_score=self.checkpoint.baseline_score or 0.0,
-                latency_p50_ms=45.0,
-                peak_vram_gb=metadata.active_parameters * 2 / (1024**3),
-                cost_usd=2.50,
+                latency_p50_ms=round(base_p50, 2),
+                peak_vram_gb=round(base_vram, 2),
+                cost_usd=round(base_cost, 2),
                 compression_ratio=1.0,
                 is_pareto_optimal=True,
             )
@@ -288,14 +318,49 @@ class ResumableExperimentRunner:
                         else 0.0
                     )
 
-                    vram_est = (metadata.active_parameters * 0.5) / (1024**3)
+                    comp_p50 = (
+                        sum(
+                            s.summary_metrics.get("latency_p50_ms", 28.0)
+                            for s in comp_suite_results
+                        )
+                        / max(1, len(comp_suite_results))
+                        if comp_suite_results
+                        else 28.0
+                    )
+                    comp_throughput = (
+                        sum(
+                            s.summary_metrics.get("throughput_tok_s", 0.0)
+                            for s in comp_suite_results
+                        )
+                        / max(1, len(comp_suite_results))
+                        if comp_suite_results
+                        else 0.0
+                    )
+                    comp_vram = (
+                        max(
+                            (
+                                s.summary_metrics.get("peak_vram_gb", 0.0)
+                                for s in comp_suite_results
+                            ),
+                            default=0.0,
+                        )
+                        if comp_suite_results
+                        and any(
+                            s.summary_metrics.get("peak_vram_gb", 0.0) for s in comp_suite_results
+                        )
+                        else (metadata.active_parameters * 0.5) / (1024**3)
+                    )
+                    comp_cost = self.cost_calculator.compute_serving_cost_per_1m_tokens(
+                        comp_throughput
+                    )
+
                     compressed_point = ParetoPoint(
                         experiment_id=self.config.experiment_id,
                         configuration_name=f"Compressed ({'+'.join(compressed_artifact.applied_methods)})",
                         quality_score=comp_pass1,
-                        latency_p50_ms=28.0,
-                        peak_vram_gb=vram_est,
-                        cost_usd=1.20,
+                        latency_p50_ms=round(comp_p50, 2),
+                        peak_vram_gb=round(comp_vram, 2),
+                        cost_usd=round(comp_cost, 2),
                         compression_ratio=4.0,
                     )
                     compressed_points.append(compressed_point)

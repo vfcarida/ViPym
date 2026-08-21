@@ -90,7 +90,8 @@ class StudioAPIHandler(SimpleHTTPRequestHandler):
 
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header(
-            "Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version"
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization, X-API-Key, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version",
         )
 
     def do_OPTIONS(self) -> None:
@@ -168,7 +169,10 @@ class StudioAPIHandler(SimpleHTTPRequestHandler):
             return
 
         # 4. WebSocket Upgrade Handler (/ws/progress or /api/ws/progress)
-        if path in ("/ws/progress", "/api/ws/progress") or self.headers.get("Upgrade", "").lower() == "websocket":
+        if (
+            path in ("/ws/progress", "/api/ws/progress")
+            or self.headers.get("Upgrade", "").lower() == "websocket"
+        ):
             self.handle_websocket_upgrade(token=token, query=query)
             return
 
@@ -321,7 +325,11 @@ class StudioAPIHandler(SimpleHTTPRequestHandler):
             status_code = self.handle_api_validate(payload)
         elif path == "/api/experiments/start":
             self.send_json_response(
-                {"status": "queued", "message": "Experiment launched successfully", "payload": payload},
+                {
+                    "status": "queued",
+                    "message": "Experiment launched successfully",
+                    "payload": payload,
+                },
                 status=202,
             )
             status_code = 202

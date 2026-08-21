@@ -14,17 +14,13 @@ Test classes:
 from __future__ import annotations
 
 import textwrap
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from vipym.evaluation.agents import (
-    AgentAction,
-    AgentObservation,
     AgentResult,
-    AgentTurn,
     SWEBenchAgent,
     SWEBenchAgentConfig,
 )
@@ -40,7 +36,6 @@ from vipym.evaluation.suites.swebench import (
 from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuiteResult, TaskResult
 from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
 
-
 # ============================================================
 # Fixtures & Mocks
 # ============================================================
@@ -50,7 +45,9 @@ class MockInferenceBackend(InferenceBackend):
     """Mock inference backend returning canned responses."""
 
     def __init__(self, response_generator=None) -> None:
-        self.response_generator = response_generator or (lambda req: "diff --git a/file.py b/file.py\n@@ -1,1 +1,1 @@\n-old\n+new\n")
+        self.response_generator = response_generator or (
+            lambda req: "diff --git a/file.py b/file.py\n@@ -1,1 +1,1 @@\n-old\n+new\n"
+        )
         self.call_history: list[GenerationRequest] = []
 
     def start(self, *args: Any, **kwargs: Any) -> None:
@@ -58,7 +55,11 @@ class MockInferenceBackend(InferenceBackend):
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
         self.call_history.append(request)
-        text = self.response_generator(request) if callable(self.response_generator) else str(self.response_generator)
+        text = (
+            self.response_generator(request)
+            if callable(self.response_generator)
+            else str(self.response_generator)
+        )
         return GenerationResponse(
             generated_text=text,
             prompt_tokens=len(request.prompt) // 4,
@@ -138,12 +139,14 @@ class TestSWEBenchConfig:
             SWEBenchSuite(variant="invalid_variant")
 
     def test_agent_config_from_dict(self):
-        cfg = SWEBenchAgentConfig.from_dict({
-            "strategy": "single_shot",
-            "max_turns": 3,
-            "context_window": 16000,
-            "temperature": 0.2,
-        })
+        cfg = SWEBenchAgentConfig.from_dict(
+            {
+                "strategy": "single_shot",
+                "max_turns": 3,
+                "context_window": 16000,
+                "temperature": 0.2,
+            }
+        )
         assert cfg.strategy == "single_shot"
         assert cfg.max_turns == 3
         assert cfg.context_window == 16000
@@ -282,7 +285,7 @@ class TestSWEBenchAgent:
 
         turn_responses = [
             '<view_file path="django/contrib/auth/validators.py" start="1" end="10"/>',
-            '<submit_patch>\n' + sample_task.canonical_solution + '\n</submit_patch>',
+            "<submit_patch>\n" + sample_task.canonical_solution + "\n</submit_patch>",
         ]
         turn_counter = [0]
 
@@ -306,7 +309,7 @@ class TestSWEBenchAgent:
 
         turn_responses = [
             '<list_files dir="django/contrib/auth"/>',
-            '<submit_patch>\n' + sample_task.canonical_solution + '\n</submit_patch>',
+            "<submit_patch>\n" + sample_task.canonical_solution + "\n</submit_patch>",
         ]
         turn_counter = [0]
 
@@ -328,7 +331,7 @@ class TestSWEBenchAgent:
 
         turn_responses = [
             '<search_dir query="ASCIIUsernameValidator" dir="django"/>',
-            '<submit_patch>\n' + sample_task.canonical_solution + '\n</submit_patch>',
+            "<submit_patch>\n" + sample_task.canonical_solution + "\n</submit_patch>",
         ]
         turn_counter = [0]
 

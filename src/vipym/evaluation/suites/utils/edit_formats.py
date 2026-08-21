@@ -20,9 +20,8 @@ Supports:
 
 from __future__ import annotations
 
-import difflib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 
@@ -207,7 +206,9 @@ def apply_unified_diff(original_code: str, diff_text: str) -> EditApplyResult:
 
     # Find hunks
     hunk_indices = [
-        i for i, line in enumerate(diff_lines) if re.match(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@", line)
+        i
+        for i, line in enumerate(diff_lines)
+        if re.match(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@", line)
     ]
 
     if not hunk_indices:

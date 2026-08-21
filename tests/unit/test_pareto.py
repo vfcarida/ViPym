@@ -9,16 +9,11 @@ Test classes:
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 import pytest
 
 from vipym.analysis.cost_model import (
-    COMMERCIAL_APIS,
     DeploymentCostModel,
     EnterpriseWorkloadConfig,
-    STANDARD_INSTANCES,
 )
 from vipym.analysis.pareto import ParetoFrontierOptimizer, ParetoPoint
 from vipym.analysis.recommender import DeploymentRecommender, RecommendationReport
@@ -30,7 +25,6 @@ from vipym.analysis.visualizations import (
 )
 from vipym.config import CostAssumptionConfig
 from vipym.metrics.cost import AWSTraceableCostModel
-
 
 # ============================================================
 # TestParetoFrontier

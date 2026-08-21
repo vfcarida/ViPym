@@ -176,10 +176,7 @@ def create_cost_comparison_bar_chart(
 
     names = [row["name"] for row in comparison_matrix]
     monthly_spends = [row["monthly_spend_usd"] for row in comparison_matrix]
-    colors = [
-        "#EF4444" if "API" in row.get("type", "") else "#3B82F6"
-        for row in comparison_matrix
-    ]
+    colors = ["#EF4444" if "API" in row.get("type", "") else "#3B82F6" for row in comparison_matrix]
 
     fig = go.Figure(
         data=go.Bar(

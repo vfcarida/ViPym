@@ -1,0 +1,19 @@
+# Global default code owners
+* @vfcarida
+
+# Core Compression & DAG Engines
+/src/vipym/pipelines/ @vfcarida
+/src/vipym/compression/ @vfcarida
+/src/vipym/experiments/ @vfcarida
+
+# Evaluation & Security Sandbox
+/src/vipym/evaluation/ @vfcarida
+/src/vipym/security/ @vfcarida
+
+# CLI & Studio Dashboard
+/src/vipym/cli/ @vfcarida
+/src/vipym/studio/ @vfcarida
+
+# Documentation & Recipes
+/docs/ @vfcarida
+/recipes/ @vfcarida

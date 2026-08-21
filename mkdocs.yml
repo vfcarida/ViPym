@@ -1,0 +1,59 @@
+site_name: ViPym Documentation
+site_description: The Open-Source Framework for Compressed LLM Benchmarking & Pareto Optimization
+site_author: ViPym Contributors
+repo_url: https://github.com/vfcarida/ViPym
+repo_name: vfcarida/ViPym
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: cyan
+      accent: teal
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Overview:
+      - Introduction: index.md
+      - Architecture: architecture.md
+      - Evaluation Methodology: benchmarks.md
+  - Use Cases:
+      - 5-Minute Quickstart: use-cases/quick-start.md
+      - SE Lifecycle Guide: use-cases/se-lifecycle.md
+  - Architecture Decision Records:
+      - ADR-001 DAG Pipelines: adr/ADR-001-dag-over-linear-pipeline.md
+      - ADR-002 MoE-First Design: adr/ADR-002-moe-first-design.md
+      - ADR-003 SE Benchmarks: adr/ADR-003-se-benchmarks-over-generic-evals.md
+      - ADR-004 Pydantic v2 Schema: adr/ADR-004-pydantic-v2-for-configuration.md
+      - ADR-005 Plugin Registries: adr/ADR-005-plugin-architecture-for-extensibility.md
+  - Operations & Guides:
+      - API Reference: api_reference.md
+      - Troubleshooting: troubleshooting.md
+      - Operational Runbook: runbook.md
+      - Migration Guide: migration.md
+  - Governance & Community:
+      - Contributing: ../CONTRIBUTING.md
+      - Code of Conduct: ../CODE_OF_CONDUCT.md
+      - Maintainers: ../MAINTAINERS.md
+      - Security Policy: ../SECURITY.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - attr_list

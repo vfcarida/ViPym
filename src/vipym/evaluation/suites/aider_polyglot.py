@@ -64,10 +64,10 @@ _POLYGLOT_SAMPLE_TASKS = [
     {
         "task_id": "polyglot/go/two-fer",
         "language": "go",
-        "original_code": "package twofer\n\nfunc ShareWith(name string) string {\n\treturn \"\"\n}\n",
+        "original_code": 'package twofer\n\nfunc ShareWith(name string) string {\n\treturn ""\n}\n',
         "instruction": "Implement ShareWith in Go: if name is empty, return 'One for you, one for me.', otherwise 'One for {name}, one for me.'.",
         "test_code": "// go test\n",
-        "canonical_edit": "<<<<<<< SEARCH\nfunc ShareWith(name string) string {\n\treturn \"\"\n}\n=======\nfunc ShareWith(name string) string {\n\tif name == \"\" {\n\t\tname = \"you\"\n\t}\n\treturn \"One for \" + name + \", one for me.\"\n}\n>>>>>>> REPLACE",
+        "canonical_edit": '<<<<<<< SEARCH\nfunc ShareWith(name string) string {\n\treturn ""\n}\n=======\nfunc ShareWith(name string) string {\n\tif name == "" {\n\t\tname = "you"\n\t}\n\treturn "One for " + name + ", one for me."\n}\n>>>>>>> REPLACE',
     },
     # --- Rust ---
     {
@@ -76,7 +76,7 @@ _POLYGLOT_SAMPLE_TASKS = [
         "original_code": "pub fn twofer(name: &str) -> String {\n    unimplemented!()\n}\n",
         "instruction": "Implement twofer in Rust: if name is empty, return 'One for you, one for me.', else 'One for {name}, one for me.'.",
         "test_code": "// cargo test\n",
-        "canonical_edit": "<<<<<<< SEARCH\npub fn twofer(name: &str) -> String {\n    unimplemented!()\n}\n=======\npub fn twofer(name: &str) -> String {\n    let who = if name.is_empty() { \"you\" } else { name };\n    format!(\"One for {}, one for me.\", who)\n}\n>>>>>>> REPLACE",
+        "canonical_edit": '<<<<<<< SEARCH\npub fn twofer(name: &str) -> String {\n    unimplemented!()\n}\n=======\npub fn twofer(name: &str) -> String {\n    let who = if name.is_empty() { "you" } else { name };\n    format!("One for {}, one for me.", who)\n}\n>>>>>>> REPLACE',
     },
     # --- Java ---
     {
@@ -85,7 +85,7 @@ _POLYGLOT_SAMPLE_TASKS = [
         "original_code": "public class Twofer {\n    public String twofer(String name) {\n        return null;\n    }\n}\n",
         "instruction": "Implement twofer in Java: if name is null, use 'you'.",
         "test_code": "// junit test\n",
-        "canonical_edit": "<<<<<<< SEARCH\n    public String twofer(String name) {\n        return null;\n    }\n=======\n    public String twofer(String name) {\n        return String.format(\"One for %s, one for me.\", name == null ? \"you\" : name);\n    }\n>>>>>>> REPLACE",
+        "canonical_edit": '<<<<<<< SEARCH\n    public String twofer(String name) {\n        return null;\n    }\n=======\n    public String twofer(String name) {\n        return String.format("One for %s, one for me.", name == null ? "you" : name);\n    }\n>>>>>>> REPLACE',
     },
 ]
 
@@ -101,7 +101,9 @@ class AiderPolyglotSuite(EvaluationSuite):
     def __init__(
         self,
         languages: list[str] | None = None,
-        edit_format: Literal["search_replace", "diff", "udiff", "whole_file", "auto"] = "search_replace",
+        edit_format: Literal[
+            "search_replace", "diff", "udiff", "whole_file", "auto"
+        ] = "search_replace",
         timeout_per_task: int = 120,
         parallel_tasks: int = 4,
     ) -> None:
@@ -138,7 +140,9 @@ class AiderPolyglotSuite(EvaluationSuite):
 
                 tasks.append(
                     BenchmarkTask(
-                        task_id=item.get("task_id", f"polyglot/{lang}/{item.get('exercise', 'task')}"),
+                        task_id=item.get(
+                            "task_id", f"polyglot/{lang}/{item.get('exercise', 'task')}"
+                        ),
                         suite=self.name,
                         entry_point=item.get("exercise", "solution"),
                         prompt=item.get("instruction", ""),
@@ -201,7 +205,9 @@ class AiderPolyglotSuite(EvaluationSuite):
         elif self.edit_format in ("diff", "udiff"):
             format_instructions = "Provide your edit as a unified diff with `--- a/... +++ b/... @@ ... @@` headers.\n"
         else:
-            format_instructions = f"Provide the complete updated {lang} source code in a ```{lang} ... ``` block.\n"
+            format_instructions = (
+                f"Provide the complete updated {lang} source code in a ```{lang} ... ``` block.\n"
+            )
 
         return (
             f"You are an expert {lang} developer editing an existing source file.\n\n"
@@ -250,7 +256,9 @@ class AiderPolyglotSuite(EvaluationSuite):
         # Execution based on language
         if lang == "python":
             full_code = f"{apply_res.modified_code}\n{task.test_code}"
-            exec_res = sandbox_runner.execute_in_sandbox(full_code, timeout_sec=task.timeout_seconds)
+            exec_res = sandbox_runner.execute_in_sandbox(
+                full_code, timeout_sec=task.timeout_seconds
+            )
             passed = exec_res.passed
             compile_success = exec_res.compile_success
             err_msg = exec_res.stderr if not passed else None
@@ -258,7 +266,14 @@ class AiderPolyglotSuite(EvaluationSuite):
             # Polyglot non-Python execution:
             # Check if canonical solution was matched or if syntax is valid
             canonical = task.canonical_solution or ""
-            passed = bool(apply_res.success and canonical and (canonical.strip() in generated_text or self._diff_similarity(apply_res.modified_code, canonical) > 0.6))
+            passed = bool(
+                apply_res.success
+                and canonical
+                and (
+                    canonical.strip() in generated_text
+                    or self._diff_similarity(apply_res.modified_code, canonical) > 0.6
+                )
+            )
             compile_success = apply_res.success
             err_msg = None if passed else "Tests not passed in multi-language runner"
 
@@ -301,7 +316,9 @@ class AiderPolyglotSuite(EvaluationSuite):
         from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
         task_results: list[TaskResult] = []

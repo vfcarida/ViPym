@@ -7,7 +7,6 @@ across 133 Exercism coding exercises.
 
 from __future__ import annotations
 
-import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
@@ -154,7 +153,9 @@ class AiderEditSuite(EvaluationSuite):
 
     def __init__(
         self,
-        edit_format: Literal["search_replace", "diff", "udiff", "whole_file", "auto"] = "search_replace",
+        edit_format: Literal[
+            "search_replace", "diff", "udiff", "whole_file", "auto"
+        ] = "search_replace",
         timeout_per_task: int = 60,
         parallel_tasks: int = 4,
     ) -> None:
@@ -251,7 +252,9 @@ class AiderEditSuite(EvaluationSuite):
                 "```\n"
             )
         else:
-            format_instructions = "Provide the complete updated file code wrapped in a ```python ... ``` block.\n"
+            format_instructions = (
+                "Provide the complete updated file code wrapped in a ```python ... ``` block.\n"
+            )
 
         return (
             f"You are an expert software developer editing an existing codebase.\n\n"
@@ -335,7 +338,9 @@ class AiderEditSuite(EvaluationSuite):
         from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
         task_results: list[TaskResult] = []

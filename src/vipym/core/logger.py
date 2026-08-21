@@ -11,8 +11,10 @@ from vipym.observability.logging import (
     configure_logging,
     emit_event,
     get_context,
-    get_logger as get_structlog_logger,
     unbind_context,
+)
+from vipym.observability.logging import (
+    get_logger as get_structlog_logger,
 )
 
 

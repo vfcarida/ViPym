@@ -1,7 +1,5 @@
 """Expert similarity computation and merging strategies for MoE models."""
 
-from typing import Any
-
 import torch
 import torch.nn as nn
 
@@ -61,9 +59,7 @@ def compute_expert_similarity(
 
     # Combined similarity
     combined_sim = (
-        weight_factor * weight_sim
-        + router_factor * router_sim
-        + activation_factor * act_sim
+        weight_factor * weight_sim + router_factor * router_sim + activation_factor * act_sim
     )
     # Ensure diagonals are 1.0
     combined_sim.fill_diagonal_(1.0)
@@ -106,7 +102,9 @@ def cluster_experts_by_similarity(
     return clusters
 
 
-def _slerp_tensor(v0: torch.Tensor, v1: torch.Tensor, t: float = 0.5, eps: float = 1e-7) -> torch.Tensor:
+def _slerp_tensor(
+    v0: torch.Tensor, v1: torch.Tensor, t: float = 0.5, eps: float = 1e-7
+) -> torch.Tensor:
     """Spherical linear interpolation between two parameter tensors."""
     orig_shape = v0.shape
     v0_flat = v0.flatten().float()
@@ -178,7 +176,9 @@ def merge_experts(
                 p_target.zero_()
 
             for exp, w in zip(source_experts, weights, strict=True):
-                for p_target, p_src in zip(target_expert.parameters(), exp.parameters(), strict=True):
+                for p_target, p_src in zip(
+                    target_expert.parameters(), exp.parameters(), strict=True
+                ):
                     p_target.add_(p_src.data.float() * w)
     else:
         # Simple arithmetic average
@@ -188,7 +188,9 @@ def merge_experts(
                 p_target.zero_()
 
             for exp in source_experts:
-                for p_target, p_src in zip(target_expert.parameters(), exp.parameters(), strict=True):
+                for p_target, p_src in zip(
+                    target_expert.parameters(), exp.parameters(), strict=True
+                ):
                     p_target.add_(p_src.data.float() * weight)
 
     return target_expert

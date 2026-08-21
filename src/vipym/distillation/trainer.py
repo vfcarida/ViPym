@@ -67,7 +67,7 @@ def _save_checkpoint(
     meta = {
         "step": step,
         "epoch": epoch,
-        "optimizer_state": None,   # omit for brevity in non-DS path
+        "optimizer_state": None,  # omit for brevity in non-DS path
         "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
     }
     with open(ckpt_dir / _CKPT_META_FILE, "w", encoding="utf-8") as f:
@@ -184,7 +184,9 @@ class DistillationTrainer:
         self.output_dir = Path(output_dir or "./distillation_output")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.resume_path = resume_from_checkpoint
-        self.device = device or (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
+        self.device = device or (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
         self._log_path = self.output_dir / "training_log.jsonl"
         self._metrics_history: list[TrainingMetrics] = []
 
@@ -308,7 +310,9 @@ class DistillationTrainer:
 
                 # Checkpoint
                 if global_step % cfg_t.save_every_steps == 0:
-                    _save_checkpoint(self.output_dir, global_step, epoch, self.student, optimizer, scheduler)
+                    _save_checkpoint(
+                        self.output_dir, global_step, epoch, self.student, optimizer, scheduler
+                    )
 
                 # Eval
                 if global_step % cfg_t.eval_every_steps == 0:
@@ -320,7 +324,9 @@ class DistillationTrainer:
                 break
 
         # Final checkpoint
-        _save_checkpoint(self.output_dir, global_step, cfg_t.epochs, self.student, optimizer, scheduler)
+        _save_checkpoint(
+            self.output_dir, global_step, cfg_t.epochs, self.student, optimizer, scheduler
+        )
         logger.info(f"Training complete — {global_step} steps, {time.perf_counter() - t0:.1f}s")
         return self._metrics_history
 
@@ -386,7 +392,7 @@ class DistillationTrainer:
         In production this would invoke the ViPym evaluation harness
         (HumanEval, BigCodeBench, etc.) against the current student checkpoint.
         """
-        return {bench: 0.0 for bench in self.config.training.eval_benchmarks}
+        return dict.fromkeys(self.config.training.eval_benchmarks, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +400,9 @@ class DistillationTrainer:
 # ---------------------------------------------------------------------------
 
 
-def _distil_collate_fn(batch: list[tuple]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+def _distil_collate_fn(
+    batch: list[tuple],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
     """Pad a batch of (input_ids, labels, cached_logits_or_None) to equal length."""
     input_ids_list, labels_list, logits_list = [], [], []
     has_logits = False

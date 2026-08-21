@@ -39,6 +39,7 @@ from vipym.interfaces.compression import CompressionMethod, PluginCapability
 from vipym.compression.registry import CompressionRegistry
 from vipym.core.types import CompressionArtifact, SupportedDtype, ComputeArchitecture
 
+
 @CompressionRegistry.register("my_method")
 class MyCustomCompression(CompressionMethod):
     def __init__(self, bits: int = 4, **kwargs: Any) -> None:
@@ -70,7 +71,7 @@ class MyCustomCompression(CompressionMethod):
         # 2. Save weights and config
         out_path = Path(output_dir or "./compressed_model")
         out_path.mkdir(parents=True, exist_ok=True)
-        
+
         return CompressionArtifact(
             output_path=out_path,
             format="compressed-tensors",
@@ -91,6 +92,7 @@ All benchmark suites inherit from `EvaluationSuite` and register in `EvaluationR
 from typing import Any
 from vipym.interfaces.evaluation import EvaluationSuite, BenchmarkTask, BenchmarkTaskResult
 from vipym.evaluation.registry import EvaluationRegistry
+
 
 @EvaluationRegistry.register("my_suite")
 class MyCustomEvaluationSuite(EvaluationSuite):
@@ -113,7 +115,9 @@ class MyCustomEvaluationSuite(EvaluationSuite):
             )
         ][:limit]
 
-    def evaluate_task(self, task: BenchmarkTask, generated_code: str, sandbox: Any) -> BenchmarkTaskResult:
+    def evaluate_task(
+        self, task: BenchmarkTask, generated_code: str, sandbox: Any
+    ) -> BenchmarkTaskResult:
         # Execute in sandbox and return task result
         result = sandbox.run_code(task.prompt + generated_code + "\n" + task.test_code)
         return BenchmarkTaskResult(

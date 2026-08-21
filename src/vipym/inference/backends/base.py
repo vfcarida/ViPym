@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from abc import ABC, abstractmethod
+from abc import ABC
+from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable
+from typing import Any
 
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.core.logger import get_logger
@@ -73,7 +74,9 @@ class BaseInferenceBackend(InferenceBackend, ABC):
         self.retry_backoff = retry_backoff_factor
         self.timeout_seconds = timeout_seconds
 
-        self._rate_limiter_delay = (1.0 / requests_per_second) if requests_per_second and requests_per_second > 0 else 0.0
+        self._rate_limiter_delay = (
+            (1.0 / requests_per_second) if requests_per_second and requests_per_second > 0 else 0.0
+        )
         self._last_request_time = 0.0
 
     async def _apply_rate_limit(self) -> None:
@@ -114,7 +117,9 @@ class BaseInferenceBackend(InferenceBackend, ABC):
                     await asyncio.sleep(delay)
                     delay *= self.retry_backoff
 
-        raise InferenceRuntimeError(f"Operation failed after {self.max_retries} attempts: {last_err}") from last_err
+        raise InferenceRuntimeError(
+            f"Operation failed after {self.max_retries} attempts: {last_err}"
+        ) from last_err
 
     def generate_batch(self, requests: list[GenerationRequest]) -> list[GenerationResponse]:
         """Synchronous batch generation."""

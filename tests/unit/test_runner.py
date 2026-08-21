@@ -12,7 +12,7 @@ from vipym.config import (
     ViPymExperimentConfig,
 )
 from vipym.core.constants import ExecutionStatus
-from vipym.core.runner import ExperimentExecutionResult, ViPymRunner
+from vipym.core.runner import ViPymRunner
 from vipym.experiments.runner import ExperimentRunSummary, ResumableExperimentRunner
 
 

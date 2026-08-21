@@ -11,9 +11,10 @@ from __future__ import annotations
 import json
 import math
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
-from typing import Any, Generator
+from typing import Any
 
 from vipym.core.logger import get_logger
 

@@ -10,7 +10,10 @@ import torch
 import torch.nn as nn
 
 from vipym.compression.methods.expert_profiler import _find_moe_blocks, _get_expert_modules
-from vipym.compression.moe.router_distillation import RouterDistillationConfig, run_router_distillation
+from vipym.compression.moe.router_distillation import (
+    RouterDistillationConfig,
+    run_router_distillation,
+)
 from vipym.compression.moe.router_utils import retrain_router
 from vipym.compression.registry import CompressionRegistry
 from vipym.core.constants import ComputeArchitecture, SupportedDtype
@@ -90,7 +93,9 @@ class ExpertPruningMethod(CompressionMethod):
         distil_cfg_dict: dict[str, Any] | None = kwargs.get(
             "router_distillation", self.router_distillation_cfg
         )
-        distil_cfg = RouterDistillationConfig.from_dict(distil_cfg_dict) if distil_cfg_dict else None
+        distil_cfg = (
+            RouterDistillationConfig.from_dict(distil_cfg_dict) if distil_cfg_dict else None
+        )
 
         orig_params = sum(p.numel() for p in model.parameters())
 
@@ -121,9 +126,7 @@ class ExpertPruningMethod(CompressionMethod):
 
             for idx, exp in enumerate(experts):
                 l2 = float(
-                    torch.sqrt(
-                        sum(torch.sum(p.data.float() ** 2) for p in exp.parameters())
-                    ).item()
+                    torch.sqrt(sum(torch.sum(p.data.float() ** 2) for p in exp.parameters())).item()
                 )
                 if strategy == "magnitude":
                     scores.append(l2)
@@ -189,9 +192,7 @@ class ExpertPruningMethod(CompressionMethod):
 
                 # Step 2 — KL distillation from teacher (optional, higher quality)
                 if distil_cfg is not None and teacher_gate is not None:
-                    calib_hs = torch.randn(
-                        distil_cfg.calibration_samples, gate_layer.in_features
-                    )
+                    calib_hs = torch.randn(distil_cfg.calibration_samples, gate_layer.in_features)
                     distil_result = run_router_distillation(
                         student_router=gate_layer,
                         teacher_router=teacher_gate,
@@ -204,12 +205,14 @@ class ExpertPruningMethod(CompressionMethod):
 
             # Merge base report, preserving any distillation key set above
             layer_entry = layer_pruning_reports.get(layer_name, {})
-            layer_entry.update({
-                "num_experts_before": num_experts,
-                "num_experts_after": len(retained_indices),
-                "retained_indices": retained_indices,
-                "pruned_indices": pruned_indices,
-            })
+            layer_entry.update(
+                {
+                    "num_experts_before": num_experts,
+                    "num_experts_after": len(retained_indices),
+                    "retained_indices": retained_indices,
+                    "pruned_indices": pruned_indices,
+                }
+            )
             layer_pruning_reports[layer_name] = layer_entry
 
         # Measure parameter reduction

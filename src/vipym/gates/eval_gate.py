@@ -71,7 +71,9 @@ class QualityEvalGate:
         """Run all configured quality and latency checks against the compressed model results."""
         checks: list[GateCheckResult] = []
         th = self.thresholds
-        use_rel = th.use_relative_scoring and (teacher_scores is not None and len(teacher_scores) > 0)
+        use_rel = th.use_relative_scoring and (
+            teacher_scores is not None and len(teacher_scores) > 0
+        )
 
         # Helper mapping of metrics to threshold attributes
         suite_mappings: list[tuple[str, str, float]] = [
@@ -98,11 +100,19 @@ class QualityEvalGate:
                 if use_rel and teacher_val is not None and teacher_val > 0:
                     retention = actual / teacher_val
                     passed = retention >= min_thresh
-                    err = None if passed else f"Relative retention {retention*100:.1f}% is below required {min_thresh*100:.1f}%"
+                    err = (
+                        None
+                        if passed
+                        else f"Relative retention {retention * 100:.1f}% is below required {min_thresh * 100:.1f}%"
+                    )
                 else:
                     retention = None
                     passed = actual >= min_thresh
-                    err = None if passed else f"Score {actual:.3f} is below required threshold {min_thresh:.3f}"
+                    err = (
+                        None
+                        if passed
+                        else f"Score {actual:.3f} is below required threshold {min_thresh:.3f}"
+                    )
 
                 checks.append(
                     GateCheckResult(
@@ -131,7 +141,7 @@ class QualityEvalGate:
                     err = (
                         None
                         if passed
-                        else f"Suite '{suite_key}' suffered {drop*100:.1f}% drop (exceeds max allowable {th.max_quality_drop_any_suite*100:.0f}%)"
+                        else f"Suite '{suite_key}' suffered {drop * 100:.1f}% drop (exceeds max allowable {th.max_quality_drop_any_suite * 100:.0f}%)"
                     )
 
                     checks.append(
@@ -161,7 +171,9 @@ class QualityEvalGate:
                         required_threshold=target_val,
                         actual_value=actual,
                         passed=passed,
-                        error_message=None if passed else f"Custom metric {actual:.3f} < {target_val:.3f}",
+                        error_message=None
+                        if passed
+                        else f"Custom metric {actual:.3f} < {target_val:.3f}",
                     )
                 )
 
@@ -177,7 +189,9 @@ class QualityEvalGate:
                     required_threshold=th.max_latency_p95_ms,
                     actual_value=p95_ms,
                     passed=passed,
-                    error_message=None if passed else f"p95 latency {p95_ms:.1f}ms exceeds max {th.max_latency_p95_ms:.1f}ms",
+                    error_message=None
+                    if passed
+                    else f"p95 latency {p95_ms:.1f}ms exceeds max {th.max_latency_p95_ms:.1f}ms",
                 )
             )
 
@@ -221,9 +235,17 @@ class QualityEvalGate:
 
         for c in verdict.checks:
             icon = "✅ PASS" if c.passed else "❌ FAIL"
-            teacher_str = f"{c.teacher_baseline_value:.3f}" if c.teacher_baseline_value is not None else "N/A"
-            retention_str = f"{c.relative_retention*100:.1f}%" if c.relative_retention is not None else "N/A"
-            req_str = f"{c.operator} {c.required_threshold*100:.0f}%" if "Drop" in c.name or c.relative_retention is not None else f"{c.operator} {c.required_threshold}"
+            teacher_str = (
+                f"{c.teacher_baseline_value:.3f}" if c.teacher_baseline_value is not None else "N/A"
+            )
+            retention_str = (
+                f"{c.relative_retention * 100:.1f}%" if c.relative_retention is not None else "N/A"
+            )
+            req_str = (
+                f"{c.operator} {c.required_threshold * 100:.0f}%"
+                if "Drop" in c.name or c.relative_retention is not None
+                else f"{c.operator} {c.required_threshold}"
+            )
             actual_str = f"{c.actual_value:.3f}"
 
             lines.append(
@@ -231,11 +253,13 @@ class QualityEvalGate:
             )
 
         if verdict.failed_checks:
-            lines.extend([
-                "",
-                "### ⚠️ Failed Check Details",
-                "",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "### ⚠️ Failed Check Details",
+                    "",
+                ]
+            )
             for fc in verdict.failed_checks:
                 lines.append(f"- **{fc.name}**: {fc.error_message}")
 

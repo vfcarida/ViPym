@@ -85,7 +85,9 @@ class SGLangBackend(BaseInferenceBackend):
 
         if self.engine in ("mock_sglang_engine", "remote_sglang_client"):
             # Deterministic mock response
-            gen_text = f"def solution():\n    return 'sglang_radix_output_{hash(request.prompt) % 1000}'\n"
+            gen_text = (
+                f"def solution():\n    return 'sglang_radix_output_{hash(request.prompt) % 1000}'\n"
+            )
             total_time = 20.0
             p_tokens = len(request.prompt.split())
             c_tokens = len(gen_text.split())
@@ -128,7 +130,10 @@ class SGLangBackend(BaseInferenceBackend):
         if not requests:
             return []
 
-        if self.engine is not None and self.engine not in ("mock_sglang_engine", "remote_sglang_client"):
+        if self.engine is not None and self.engine not in (
+            "mock_sglang_engine",
+            "remote_sglang_client",
+        ):
             start_time = time.perf_counter()
             prompts = [req.prompt for req in requests]
             first_req = requests[0]

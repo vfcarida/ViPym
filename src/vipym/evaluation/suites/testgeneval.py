@@ -196,7 +196,7 @@ def generate_mutants(source_code: str) -> list[tuple[str, str]]:
         original_ret = m.group(0)
         var = m.group(1)
         if var not in ("None", "True", "False"):
-            corrupted = source_code[:m.start()] + "return None" + source_code[m.end():]
+            corrupted = source_code[: m.start()] + "return None" + source_code[m.end() :]
             mutants.append((f"RET_CORRUPT_{var}", corrupted))
 
     return mutants
@@ -368,8 +368,13 @@ class TestGenEvalSuite(EvaluationSuite):
         mutants = generate_mutants(source_code)
         killed_count = 0
         for _name, mutated_code in mutants:
-            mutant_run_code = f"{mutated_code}\n\n{clean_tests}\n\n" + self._build_test_runner_snippet(clean_tests)
-            m_res = sandbox_runner.execute_in_sandbox(mutant_run_code, timeout_sec=min(5, task.timeout_seconds))
+            mutant_run_code = (
+                f"{mutated_code}\n\n{clean_tests}\n\n"
+                + self._build_test_runner_snippet(clean_tests)
+            )
+            m_res = sandbox_runner.execute_in_sandbox(
+                mutant_run_code, timeout_sec=min(5, task.timeout_seconds)
+            )
             if not m_res.passed:
                 killed_count += 1
 
@@ -410,10 +415,7 @@ class TestGenEvalSuite(EvaluationSuite):
         if not func_names:
             return ""
         calls = "\n".join([f"    {fn}()" for fn in func_names])
-        return (
-            "if __name__ == '__main__':\n"
-            f"{calls}\n"
-        )
+        return f"if __name__ == '__main__':\n{calls}\n"
 
     def _estimate_coverage(self, source_code: str, test_code: str) -> tuple[float, float]:
         """Compute estimated line and branch coverage of test suite over source code."""
@@ -423,7 +425,9 @@ class TestGenEvalSuite(EvaluationSuite):
             return 0.5, 0.5
 
         stmt_count = sum(1 for node in ast.walk(tree) if isinstance(node, ast.stmt))
-        branch_nodes = sum(1 for node in ast.walk(tree) if isinstance(node, (ast.If, ast.While, ast.For, ast.Try)))
+        branch_nodes = sum(
+            1 for node in ast.walk(tree) if isinstance(node, (ast.If, ast.While, ast.For, ast.Try))
+        )
 
         # Heuristic coverage estimation based on assertion count and calls
         test_fn_count = len(re.findall(r"def\s+test_", test_code))
@@ -450,7 +454,9 @@ class TestGenEvalSuite(EvaluationSuite):
             tasks = self.load_tasks(limit=task_limit)
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
 

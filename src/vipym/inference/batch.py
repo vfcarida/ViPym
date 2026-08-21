@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
 
 from vipym.core.logger import get_logger
 from vipym.inference.backends.base import BaseInferenceBackend
@@ -59,7 +58,9 @@ class BatchInferenceRunner:
 
         # If the backend is a BaseInferenceBackend, chunk into optimal batch sizes
         if isinstance(self.backend, BaseInferenceBackend):
-            chunks = [requests[i : i + self.batch_size] for i in range(0, len(requests), self.batch_size)]
+            chunks = [
+                requests[i : i + self.batch_size] for i in range(0, len(requests), self.batch_size)
+            ]
             for chunk in chunks:
                 chunk_resp = await self.backend.generate_batch_async(chunk)
                 all_responses.extend(chunk_resp)

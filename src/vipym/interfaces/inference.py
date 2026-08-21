@@ -15,6 +15,7 @@ class GenerationRequest(pydantic.BaseModel):
     temperature: float = 0.0
     top_p: float = 1.0
     stop_tokens: list[str] = pydantic.Field(default_factory=list)
+    timeout_seconds: float = 60.0
 
 
 class GenerationResponse(pydantic.BaseModel):
@@ -45,6 +46,10 @@ class InferenceBackend(ABC):
     ) -> None:
         """Initialize and start serving engine."""
         pass
+
+    def health_check(self) -> bool:
+        """Probe serving backend readiness and memory health."""
+        return True
 
     @abstractmethod
     def generate(self, request: GenerationRequest) -> GenerationResponse:

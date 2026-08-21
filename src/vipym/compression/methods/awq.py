@@ -123,9 +123,7 @@ class AWQCompressionMethod(CompressionMethod):
                     for item in ds
                 ][:num_samples]
             elif "wikitext" in clean_name:
-                ds = load_dataset(
-                    "wikitext", "wikitext-2-raw-v1", split="train"
-                )
+                ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
                 texts = [t for t in ds["text"] if len(t.strip()) > 50][:num_samples]
             elif "c4" in clean_name:
                 ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
@@ -247,12 +245,8 @@ class AWQCompressionMethod(CompressionMethod):
         seq_length = int(calib_cfg.get("seq_length") or calib_cfg.get("sequence_length", 2048))
 
         mixed_cfg = kwargs.get("mixed_precision", self.mixed_precision) or {}
-        expert_bits = int(
-            mixed_cfg.get("expert_bits", mixed_cfg.get("expert_layers_bits", w_bit))
-        )
-        shared_bits = int(
-            mixed_cfg.get("shared_bits", mixed_cfg.get("shared_layers_bits", w_bit))
-        )
+        expert_bits = int(mixed_cfg.get("expert_bits", mixed_cfg.get("expert_layers_bits", w_bit)))
+        shared_bits = int(mixed_cfg.get("shared_bits", mixed_cfg.get("shared_layers_bits", w_bit)))
 
         logger.info(
             f"Executing AWQ quantization: bits={w_bit} (shared={shared_bits}, expert={expert_bits}), "

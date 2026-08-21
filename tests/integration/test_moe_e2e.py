@@ -31,14 +31,16 @@ class SmallMoEBlock(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_experts = num_experts
         self.router = nn.Linear(hidden_dim, num_experts, bias=False)
-        self.experts = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(hidden_dim, ffn_dim),
-                nn.ReLU(),
-                nn.Linear(ffn_dim, hidden_dim),
-            )
-            for _ in range(num_experts)
-        ])
+        self.experts = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(hidden_dim, ffn_dim),
+                    nn.ReLU(),
+                    nn.Linear(ffn_dim, hidden_dim),
+                )
+                for _ in range(num_experts)
+            ]
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Routing logits
@@ -74,10 +76,12 @@ class SmallMoEModel(nn.Module):
         self.num_experts = num_experts
         self.embed = nn.Embedding(1000, hidden_dim)
         self.attn = nn.Linear(hidden_dim, hidden_dim)
-        self.moe_layers = nn.ModuleList([
-            SmallMoEBlock(hidden_dim=hidden_dim, num_experts=num_experts)
-            for _ in range(num_layers)
-        ])
+        self.moe_layers = nn.ModuleList(
+            [
+                SmallMoEBlock(hidden_dim=hidden_dim, num_experts=num_experts)
+                for _ in range(num_layers)
+            ]
+        )
         self.lm_head = nn.Linear(hidden_dim, 1000, bias=False)
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
@@ -138,7 +142,9 @@ class TestMoEE2E:
         for i, moe_layer in enumerate(moe_model.moe_layers):
             current_experts = len(moe_layer.experts)
             assert current_experts == 2, f"Layer {i} expert count {current_experts} != 2"
-            assert moe_layer.router.out_features == 2, f"Router out_features {moe_layer.router.out_features} != 2"
+            assert moe_layer.router.out_features == 2, (
+                f"Router out_features {moe_layer.router.out_features} != 2"
+            )
 
         # 2. Verify functional forward pass on pruned MoE model
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -152,7 +158,9 @@ class TestMoEE2E:
             assert not torch.isinf(logits).any()
             assert logits.shape == (1, 4, 1000)
 
-    def test_moe_expert_profiling_and_awq_quantization_e2e(self, moe_model: SmallMoEModel, tmp_path: Path):
+    def test_moe_expert_profiling_and_awq_quantization_e2e(
+        self, moe_model: SmallMoEModel, tmp_path: Path
+    ):
         """Test expert profiler analysis and AWQ quantization on MoE architecture."""
         profiler = ExpertProfiler(n_samples=16)
         profile_artifact = profiler.compress(

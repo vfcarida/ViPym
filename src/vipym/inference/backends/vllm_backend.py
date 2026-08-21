@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.core.logger import get_logger
@@ -137,7 +137,11 @@ class VLLMBackend(BaseInferenceBackend):
         if not requests:
             return []
 
-        if self.llm is not None and self.llm not in ("mock_vllm_engine", "remote_vllm_client") and self.sampling_params_cls:
+        if (
+            self.llm is not None
+            and self.llm not in ("mock_vllm_engine", "remote_vllm_client")
+            and self.sampling_params_cls
+        ):
             start_time = time.perf_counter()
             prompts = [req.prompt for req in requests]
             # Use params from the first request

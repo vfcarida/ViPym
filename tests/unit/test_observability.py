@@ -80,7 +80,11 @@ class TestStructuredLogging:
 
         # Read back log file and parse each line as JSON
         assert json_log_file.exists()
-        lines = [line.strip() for line in json_log_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        lines = [
+            line.strip()
+            for line in json_log_file.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
         assert len(lines) > 0
 
         # Validate that the last line is a valid JSON dictionary containing bound context
@@ -223,7 +227,9 @@ class TestPipelineProgressTracker:
     def test_pipeline_track_stage_contextmanager(self):
         tracker = PipelineProgressTracker(total_stages=2, pipeline_name="ctx_pipeline")
 
-        with tracker.track_stage("stage_auto", stage_type="distillation", metrics_dict={"loss": 0.15}):
+        with tracker.track_stage(
+            "stage_auto", stage_type="distillation", metrics_dict={"loss": 0.15}
+        ):
             time.sleep(0.02)
 
         assert tracker.completed_stages == 1
@@ -249,7 +255,9 @@ class TestPipelineProgressTracker:
 
     def test_pipeline_rich_progress_context(self):
         console = Console(record=True)
-        with PipelineProgressTracker(total_stages=3, pipeline_name="rich_pipe", use_rich_progress=True, console=console) as tracker:
+        with PipelineProgressTracker(
+            total_stages=3, pipeline_name="rich_pipe", use_rich_progress=True, console=console
+        ) as tracker:
             tracker.start_stage("step_1")
             tracker.complete_stage("step_1")
             tracker.start_stage("step_2")
@@ -286,7 +294,9 @@ class TestSubStageProgressTrackers:
 
     def test_layer_progress_tracker_rich_context(self):
         console = Console(record=True)
-        with LayerProgressTracker(total_layers=8, stage_name="fp8_quant", use_rich_progress=True, console=console) as tracker:
+        with LayerProgressTracker(
+            total_layers=8, stage_name="fp8_quant", use_rich_progress=True, console=console
+        ) as tracker:
             for i in range(4):
                 tracker.step(layer_idx=i, layer_name=f"layer_{i}")
         assert tracker.completed_layers == 4
@@ -305,7 +315,9 @@ class TestSubStageProgressTrackers:
 
     def test_expert_progress_tracker_rich_context(self):
         console = Console(record=True)
-        with ExpertProgressTracker(total_experts=16, stage_name="moe_merge", use_rich_progress=True, console=console) as tracker:
+        with ExpertProgressTracker(
+            total_experts=16, stage_name="moe_merge", use_rich_progress=True, console=console
+        ) as tracker:
             for i in range(8):
                 tracker.step(expert_idx=i, expert_id=f"exp_{i}")
         assert tracker.completed_experts == 8
@@ -326,7 +338,9 @@ class TestSubStageProgressTrackers:
 
     def test_step_progress_tracker_rich_context(self):
         console = Console(record=True)
-        with StepProgressTracker(total_steps=20, stage_name="distill", use_rich_progress=True, console=console) as tracker:
+        with StepProgressTracker(
+            total_steps=20, stage_name="distill", use_rich_progress=True, console=console
+        ) as tracker:
             for i in range(10):
                 tracker.step(step_idx=i, step_info=f"step_{i}", metrics={"loss": 0.5})
         assert tracker.completed_steps == 10

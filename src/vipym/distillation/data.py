@@ -23,8 +23,6 @@ import hashlib
 import json
 import subprocess
 import tempfile
-import textwrap
-import time
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +41,7 @@ logger = get_logger(__name__)
 _CODE_PROMPTS: list[str] = [
     "Write a Python function that {task}.",
     "Implement a solution for: {task}",
-    "# Python\ndef solve_{slug}():\n    \"\"\"Solve: {task}\"\"\"\n",
+    '# Python\ndef solve_{slug}():\n    """Solve: {task}"""\n',
     "Given the problem: {task}\nWrite clean, efficient Python code.",
 ]
 
@@ -125,7 +123,9 @@ class SyntheticDataGenerator:
     def generate(self) -> list[dict[str, str]]:
         """Return list of ``{"prompt": str, "response": str}`` dicts."""
         samples: list[dict[str, str]] = []
-        logger.info(f"Generating {self.num_samples} synthetic samples (code_ratio={self.code_ratio})")
+        logger.info(
+            f"Generating {self.num_samples} synthetic samples (code_ratio={self.code_ratio})"
+        )
 
         for idx in range(self.num_samples):
             prompt = self._build_prompt(idx)
@@ -155,7 +155,7 @@ class SyntheticDataGenerator:
                     top_p=self.top_p,
                     do_sample=True,
                 )
-            new_tokens = out[0, input_ids.shape[1]:]
+            new_tokens = out[0, input_ids.shape[1] :]
             return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
 
         return f"# response for: {prompt[:50]}"
@@ -182,11 +182,28 @@ class ExecutionFilter:
             If ``None``, no import restriction.
     """
 
-    _DEFAULT_ALLOWED: frozenset[str] = frozenset({
-        "ast", "collections", "functools", "heapq", "itertools",
-        "math", "operator", "os", "pathlib", "re", "string", "sys",
-        "textwrap", "time", "typing", "unittest", "numpy", "torch",
-    })
+    _DEFAULT_ALLOWED: frozenset[str] = frozenset(
+        {
+            "ast",
+            "collections",
+            "functools",
+            "heapq",
+            "itertools",
+            "math",
+            "operator",
+            "os",
+            "pathlib",
+            "re",
+            "string",
+            "sys",
+            "textwrap",
+            "time",
+            "typing",
+            "unittest",
+            "numpy",
+            "torch",
+        }
+    )
 
     def __init__(
         self,
@@ -196,7 +213,9 @@ class ExecutionFilter:
     ) -> None:
         self.timeout = timeout
         self.allow_subprocess = allow_subprocess
-        self.allowed_imports = allowed_imports if allowed_imports is not None else self._DEFAULT_ALLOWED
+        self.allowed_imports = (
+            allowed_imports if allowed_imports is not None else self._DEFAULT_ALLOWED
+        )
 
     def is_valid(self, code: str) -> bool:
         """Return ``True`` if the code sample should be kept."""
@@ -274,7 +293,9 @@ class TeacherLogitCache:
         dtype: NumPy dtype to store logits (``float16`` by default saves ~50%).
     """
 
-    def __init__(self, cache_dir: str | Path = "./teacher_logit_cache", dtype: str = "float16") -> None:
+    def __init__(
+        self, cache_dir: str | Path = "./teacher_logit_cache", dtype: str = "float16"
+    ) -> None:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.dtype = dtype

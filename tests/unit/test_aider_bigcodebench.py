@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import textwrap
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -30,7 +29,6 @@ from vipym.evaluation.suites.bigcodebench import (
     compute_library_coverage,
 )
 from vipym.evaluation.suites.utils.edit_formats import (
-    EditApplyResult,
     EditBlock,
     apply_edit,
     apply_search_replace,
@@ -39,9 +37,8 @@ from vipym.evaluation.suites.utils.edit_formats import (
     parse_search_replace_blocks,
     validate_format_compliance,
 )
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuiteResult, TaskResult
+from vipym.interfaces.evaluation import EvaluationSuiteResult, TaskResult
 from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
-
 
 # ============================================================
 # Mock Inference Backend
@@ -56,7 +53,11 @@ class MockInferenceBackend(InferenceBackend):
         pass
 
     def generate(self, request: GenerationRequest) -> GenerationResponse:
-        text = self.response_generator(request) if callable(self.response_generator) else str(self.response_generator)
+        text = (
+            self.response_generator(request)
+            if callable(self.response_generator)
+            else str(self.response_generator)
+        )
         return GenerationResponse(
             generated_text=text,
             prompt_tokens=len(request.prompt) // 4,
@@ -142,7 +143,11 @@ class TestEditFormats:
     def test_apply_search_replace_fuzzy_whitespace(self):
         code = "def foo():\n    x = 1\n    return x\n"
         # Search block has different indentation
-        blocks = [EditBlock(search_content="x = 1\nreturn x", replace_content="    x = 2\n    return x * 2")]
+        blocks = [
+            EditBlock(
+                search_content="x = 1\nreturn x", replace_content="    x = 2\n    return x * 2"
+            )
+        ]
         res = apply_search_replace(code, blocks, fuzzy=True)
         assert res.success is True
         assert "return x * 2" in res.modified_code
@@ -261,7 +266,9 @@ class TestAiderEditSuite:
         task = suite.load_tasks(limit=1)[0]
 
         # Edit applies cleanly but gives incorrect logic
-        broken_logic_edit = "<<<<<<< SEARCH\n    pass\n=======\n    return 'wrong answer'\n>>>>>>> REPLACE"
+        broken_logic_edit = (
+            "<<<<<<< SEARCH\n    pass\n=======\n    return 'wrong answer'\n>>>>>>> REPLACE"
+        )
         res = suite.evaluate_response(task, broken_logic_edit, sandbox_runner)
         assert res.compile_success is True
         assert res.passed is False

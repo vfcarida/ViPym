@@ -21,7 +21,7 @@ Three initialisation strategies:
 
 from __future__ import annotations
 
-import copy
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -39,12 +39,42 @@ logger = get_logger(__name__)
 # Maps size-string → approximate (hidden_dim, num_layers, num_heads)
 # These are only used for *random* init when no pretrained model is specified.
 _SIZE_PRESETS: dict[str, dict[str, int]] = {
-    "tiny": {"hidden_size": 256, "num_hidden_layers": 6, "num_attention_heads": 4, "intermediate_size": 1024},
-    "small": {"hidden_size": 512, "num_hidden_layers": 8, "num_attention_heads": 8, "intermediate_size": 2048},
-    "7b":  {"hidden_size": 4096, "num_hidden_layers": 32, "num_attention_heads": 32, "intermediate_size": 14336},
-    "14b": {"hidden_size": 5120, "num_hidden_layers": 40, "num_attention_heads": 40, "intermediate_size": 13824},
-    "32b": {"hidden_size": 6656, "num_hidden_layers": 60, "num_attention_heads": 52, "intermediate_size": 17920},
-    "70b": {"hidden_size": 8192, "num_hidden_layers": 80, "num_attention_heads": 64, "intermediate_size": 28672},
+    "tiny": {
+        "hidden_size": 256,
+        "num_hidden_layers": 6,
+        "num_attention_heads": 4,
+        "intermediate_size": 1024,
+    },
+    "small": {
+        "hidden_size": 512,
+        "num_hidden_layers": 8,
+        "num_attention_heads": 8,
+        "intermediate_size": 2048,
+    },
+    "7b": {
+        "hidden_size": 4096,
+        "num_hidden_layers": 32,
+        "num_attention_heads": 32,
+        "intermediate_size": 14336,
+    },
+    "14b": {
+        "hidden_size": 5120,
+        "num_hidden_layers": 40,
+        "num_attention_heads": 40,
+        "intermediate_size": 13824,
+    },
+    "32b": {
+        "hidden_size": 6656,
+        "num_hidden_layers": 60,
+        "num_attention_heads": 52,
+        "intermediate_size": 17920,
+    },
+    "70b": {
+        "hidden_size": 8192,
+        "num_hidden_layers": 80,
+        "num_attention_heads": 64,
+        "intermediate_size": 28672,
+    },
 }
 
 
@@ -83,7 +113,9 @@ class StudentInitializer:
         if init_from == "teacher_subset":
             if teacher is None:
                 raise ValueError("'teacher_subset' init requires passing teacher model.")
-            logger.info(f"StudentInitializer: teacher_subset init from teacher ({type(teacher).__name__})")
+            logger.info(
+                f"StudentInitializer: teacher_subset init from teacher ({type(teacher).__name__})"
+            )
             return self._teacher_subset_init(teacher)
 
         # Pretrained warm-start
@@ -129,15 +161,20 @@ class StudentInitializer:
     def _pretrained_init(self) -> nn.Module:
         try:
             from transformers import AutoModelForCausalLM  # type: ignore[import]
+
             model = AutoModelForCausalLM.from_pretrained(
                 self.config.init_from,
                 torch_dtype=torch.bfloat16,
                 low_cpu_mem_usage=True,
             )
-            logger.info(f"Pretrained student loaded: {sum(p.numel() for p in model.parameters()):,} params")
+            logger.info(
+                f"Pretrained student loaded: {sum(p.numel() for p in model.parameters()):,} params"
+            )
             return model.train()
         except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Could not load pretrained '{self.config.init_from}': {exc}. Falling back to random.")
+            logger.warning(
+                f"Could not load pretrained '{self.config.init_from}': {exc}. Falling back to random."
+            )
             return self._random_init()
 
     # ------------------------------------------------------------------
@@ -158,13 +195,17 @@ class StudentInitializer:
         student_layers = _get_transformer_layers(student)
 
         if not teacher_layers or not student_layers:
-            logger.warning("Could not locate transformer layers for teacher_subset init; returning random student.")
+            logger.warning(
+                "Could not locate transformer layers for teacher_subset init; returning random student."
+            )
             return student
 
         if n_copy <= 0:
             n_copy = min(len(teacher_layers), len(student_layers))
 
-        logger.info(f"Copying {n_copy} layers from teacher ({len(teacher_layers)} available) into student ({len(student_layers)} layers)")
+        logger.info(
+            f"Copying {n_copy} layers from teacher ({len(teacher_layers)} available) into student ({len(student_layers)} layers)"
+        )
 
         for s_idx in range(min(n_copy, len(student_layers))):
             t_idx = int(s_idx * len(teacher_layers) / n_copy)
@@ -235,15 +276,17 @@ class _SimpleDenseModel(nn.Module):
     def __init__(self, vocab_size: int = 256, hidden_size: int = 64, num_layers: int = 2) -> None:
         super().__init__()
         self.embed = nn.Embedding(vocab_size, hidden_size)
-        self.layers = nn.ModuleList([
-            nn.TransformerDecoderLayer(
-                d_model=hidden_size,
-                nhead=max(1, hidden_size // 64),
-                dim_feedforward=hidden_size * 4,
-                batch_first=True,
-            )
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [
+                nn.TransformerDecoderLayer(
+                    d_model=hidden_size,
+                    nhead=max(1, hidden_size // 64),
+                    dim_feedforward=hidden_size * 4,
+                    batch_first=True,
+                )
+                for _ in range(num_layers)
+            ]
+        )
         self.norm = nn.LayerNorm(hidden_size)
         self.lm_head = nn.Linear(hidden_size, vocab_size, bias=False)
         self.vocab_size = vocab_size
@@ -276,8 +319,10 @@ class _SimpleDenseModel(nn.Module):
         return _ModelOutput(loss=None, logits=logits)
 
     def save_pretrained(self, path: str | Path) -> None:
-        import torch
         from pathlib import Path as _Path
+
+        import torch
+
         _Path(path).mkdir(parents=True, exist_ok=True)
         torch.save(self.state_dict(), _Path(path) / "pytorch_model.bin")
 
@@ -287,6 +332,7 @@ class _SimpleDenseModel(nn.Module):
 
 class _ModelOutput:
     """Minimal stand-in for HF ModelOutput."""
+
     __slots__ = ("loss", "logits")
 
     def __init__(self, loss: torch.Tensor | None, logits: torch.Tensor) -> None:

@@ -93,12 +93,19 @@ class VLLMInferenceBackend(InferenceBackend):
             total_time_ms=total_time,
         )
 
+    def health_check(self) -> bool:
+        """Verify vLLM engine readiness."""
+        return self.llm is not None
+
     async def generate_async(self, request: GenerationRequest) -> GenerationResponse:
         return await asyncio.to_thread(self.generate, request)
 
     def stop(self) -> None:
         logger.info("Stopping vLLM engine and releasing resources.")
         self.llm = None
+        from vipym.utils.resilience import safe_cuda_memory_cleanup
+
+        safe_cuda_memory_cleanup()
 
 
 InferenceRegistry.register("vllm", VLLMInferenceBackend)

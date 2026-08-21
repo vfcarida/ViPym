@@ -8,7 +8,8 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Serving: vLLM](https://img.shields.io/badge/Serving-vLLM%20%7C%20SGLang-00D4B2?style=for-the-badge)](https://github.com/vllm-project/vllm)
 [![Code style: ruff](https://img.shields.io/badge/Code%20Style-Ruff-000000?style=for-the-badge&logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
-[![Tests Passing](https://img.shields.io/badge/Tests-345%2F345%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
+[![Tests Passing](https://img.shields.io/badge/Tests-364%2F364%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
+[![CI](https://img.shields.io/badge/CI-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/vfcarida/ViPym/actions)
 
 <p align="center">
   <strong>The open-source reference framework for multi-stage LLM compression, zero-trust software engineering benchmark validation, and Pareto cost/quality optimization.</strong>
@@ -20,6 +21,8 @@
   <a href="#-pre-built-recipes-hub">Recipes Hub</a> •
   <a href="#-system-architecture">Architecture</a> •
   <a href="#-vipym-studio-web-dashboard">ViPym Studio</a> •
+  <a href="docs/troubleshooting.md">Troubleshooting</a> •
+  <a href="docs/runbook.md">Runbook</a> •
   <a href="docs/use-cases/se-lifecycle.md">Use Cases</a> •
   <a href="docs/adr/">Architecture Decisions</a>
 </p>

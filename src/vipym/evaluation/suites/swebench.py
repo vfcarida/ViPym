@@ -18,7 +18,12 @@ from vipym.core.logger import get_logger
 from vipym.evaluation.agents.swebench_agent import SWEBenchAgent, SWEBenchAgentConfig
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
-from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, EvaluationSuiteResult, TaskResult
+from vipym.interfaces.evaluation import (
+    BenchmarkTask,
+    EvaluationSuite,
+    EvaluationSuiteResult,
+    TaskResult,
+)
 from vipym.interfaces.inference import InferenceBackend
 
 logger = get_logger(__name__)
@@ -49,8 +54,12 @@ _SAMPLE_TASKS = [
         ),
         "hints_text": "Change regex patterns to use \\A and \\Z anchors.",
         "test_patch": "diff --git a/tests/auth_tests/test_validators.py b/tests/auth_tests/test_validators.py\n",
-        "FAIL_TO_PASS": ["tests.auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator_trailing_newline"],
-        "PASS_TO_PASS": ["tests.auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator"],
+        "FAIL_TO_PASS": [
+            "tests.auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator_trailing_newline"
+        ],
+        "PASS_TO_PASS": [
+            "tests.auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator"
+        ],
         "version": "3.0",
         "environment_setup_commit": "4f9d555c8c5c99e913a4bc4d420bb5c59df3fcf8",
         "canonical_solution": """diff --git a/django/contrib/auth/validators.py b/django/contrib/auth/validators.py
@@ -152,7 +161,9 @@ class SWEBenchSuite(EvaluationSuite):
     ) -> None:
         self.variant = variant.lower()
         if self.variant not in _HF_DATASET_MAP:
-            raise ValueError(f"Unknown SWE-bench variant '{variant}'. Choose from: {list(_HF_DATASET_MAP.keys())}")
+            raise ValueError(
+                f"Unknown SWE-bench variant '{variant}'. Choose from: {list(_HF_DATASET_MAP.keys())}"
+            )
 
         if isinstance(agent_config, dict):
             self.agent_config = SWEBenchAgentConfig.from_dict(agent_config)
@@ -185,7 +196,9 @@ class SWEBenchSuite(EvaluationSuite):
         try:
             from datasets import load_dataset  # type: ignore[import]
 
-            logger.info(f"Loading SWE-bench '{self.variant}' dataset from HuggingFace ({dataset_name})")
+            logger.info(
+                f"Loading SWE-bench '{self.variant}' dataset from HuggingFace ({dataset_name})"
+            )
             hf_ds = load_dataset(dataset_name, split="test")
 
             for item in hf_ds:
@@ -214,8 +227,12 @@ class SWEBenchSuite(EvaluationSuite):
             "base_commit": item.get("base_commit", ""),
             "environment_setup_commit": item.get("environment_setup_commit", ""),
             "hints_text": item.get("hints_text", ""),
-            "FAIL_TO_PASS": json.loads(item["FAIL_TO_PASS"]) if isinstance(item.get("FAIL_TO_PASS"), str) else item.get("FAIL_TO_PASS", []),
-            "PASS_TO_PASS": json.loads(item["PASS_TO_PASS"]) if isinstance(item.get("PASS_TO_PASS"), str) else item.get("PASS_TO_PASS", []),
+            "FAIL_TO_PASS": json.loads(item["FAIL_TO_PASS"])
+            if isinstance(item.get("FAIL_TO_PASS"), str)
+            else item.get("FAIL_TO_PASS", []),
+            "PASS_TO_PASS": json.loads(item["PASS_TO_PASS"])
+            if isinstance(item.get("PASS_TO_PASS"), str)
+            else item.get("PASS_TO_PASS", []),
             "version": item.get("version", ""),
             "variant": self.variant,
         }
@@ -346,10 +363,15 @@ class SWEBenchSuite(EvaluationSuite):
     def _validate_patch_syntax(self, patch: str) -> tuple[bool, str]:
         """Check if string looks like a syntactically plausible unified diff."""
         has_file_header = bool(re.search(r"^(?:diff --git|--- a/|\+\+\+ b/)", patch, re.MULTILINE))
-        has_hunk_header = bool(re.search(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@", patch, re.MULTILINE))
+        has_hunk_header = bool(
+            re.search(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@", patch, re.MULTILINE)
+        )
 
         if not has_file_header and not has_hunk_header:
-            return False, "Missing diff file headers (--- a/..., +++ b/...) or hunk headers (@@ -... +... @@)"
+            return (
+                False,
+                "Missing diff file headers (--- a/..., +++ b/...) or hunk headers (@@ -... +... @@)",
+            )
 
         return True, ""
 
@@ -357,6 +379,7 @@ class SWEBenchSuite(EvaluationSuite):
         """Check if swebench harness package and Docker daemon are present."""
         try:
             import swebench  # type: ignore[import]  # noqa: F401
+
             from vipym.evaluation.sandbox.docker_sandbox import is_docker_available
 
             return is_docker_available()
@@ -390,7 +413,9 @@ class SWEBenchSuite(EvaluationSuite):
                 log=str(result.get("log", "")),
             )
         except Exception as exc:  # noqa: BLE001
-            logger.warning(f"SWE-bench official harness run failed ({exc}); falling back to sandbox simulator")
+            logger.warning(
+                f"SWE-bench official harness run failed ({exc}); falling back to sandbox simulator"
+            )
             return self._simulate_patch_evaluation(task, patch, t0)
 
     def _simulate_patch_evaluation(
@@ -435,7 +460,9 @@ class SWEBenchSuite(EvaluationSuite):
             pass_to_pass_passed=p2p,
             pass_to_pass_failed=[],
             execution_time_ms=elapsed,
-            error_message=None if resolved else ("Tests failed" if applied else "Patch failed to apply"),
+            error_message=None
+            if resolved
+            else ("Tests failed" if applied else "Patch failed to apply"),
             log=f"Patch evaluation simulation (overlap: {self._compute_diff_overlap(clean_patch, clean_canonical):.2f})",
         )
 

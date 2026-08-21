@@ -105,7 +105,11 @@ class ExpertMergingMethod(CompressionMethod):
                 continue
 
             gate_layer = getattr(block, "gate", getattr(block, "router", None))
-            gate_weight = gate_layer.weight.data if (gate_layer is not None and isinstance(gate_layer, nn.Linear)) else None
+            gate_weight = (
+                gate_layer.weight.data
+                if (gate_layer is not None and isinstance(gate_layer, nn.Linear))
+                else None
+            )
 
             # Compute similarity matrix across experts in this layer
             sim_matrix = compute_expert_similarity(
@@ -120,7 +124,11 @@ class ExpertMergingMethod(CompressionMethod):
                 min_clusters=min_exp,
             )
 
-            if len(clusters) == num_experts and self.target_num_experts is not None and self.target_num_experts < num_experts:
+            if (
+                len(clusters) == num_experts
+                and self.target_num_experts is not None
+                and self.target_num_experts < num_experts
+            ):
                 # Force merge to target_num_experts
                 clusters = cluster_experts_by_similarity(
                     similarity_matrix=sim_matrix,
@@ -152,8 +160,14 @@ class ExpertMergingMethod(CompressionMethod):
             # Update router weights to match new merged expert count
             if gate_layer is not None and isinstance(gate_layer, nn.Linear):
                 new_num_experts = len(clusters)
-                new_weight = torch.zeros(new_num_experts, gate_layer.in_features, device=gate_layer.weight.device)
-                new_bias = torch.zeros(new_num_experts, device=gate_layer.weight.device) if gate_layer.bias is not None else None
+                new_weight = torch.zeros(
+                    new_num_experts, gate_layer.in_features, device=gate_layer.weight.device
+                )
+                new_bias = (
+                    torch.zeros(new_num_experts, device=gate_layer.weight.device)
+                    if gate_layer.bias is not None
+                    else None
+                )
 
                 with torch.no_grad():
                     for new_idx, cluster in enumerate(clusters):

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import json
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -222,12 +221,16 @@ class BigCodeBenchSuite(EvaluationSuite):
     def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         """Load BigCodeBench tasks from Hugging Face or fallback collection."""
         tasks: list[BenchmarkTask] = []
-        dataset_name = _BIGCODEBENCH_HARD_DATASET if self.variant == "hard" else _BIGCODEBENCH_HF_DATASET
+        dataset_name = (
+            _BIGCODEBENCH_HARD_DATASET if self.variant == "hard" else _BIGCODEBENCH_HF_DATASET
+        )
 
         try:
             from datasets import load_dataset  # type: ignore[import]
 
-            hf_ds = load_dataset(dataset_name, split="v0.1.2" if self.variant != "hard" else "train")
+            hf_ds = load_dataset(
+                dataset_name, split="v0.1.2" if self.variant != "hard" else "train"
+            )
             for item in hf_ds:
                 libs_val = item.get("libs", [])
                 if isinstance(libs_val, str):
@@ -348,7 +351,9 @@ class BigCodeBenchSuite(EvaluationSuite):
         from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
 
         sandbox = sandbox_runner or SandboxedCodeRunner(
-            config=SandboxSecurityConfig(allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task),
+            config=SandboxSecurityConfig(
+                allow_unsafe_execution=True, timeout_seconds=self.timeout_per_task
+            ),
             check_connectivity=False,
         )
         task_results: list[TaskResult] = []

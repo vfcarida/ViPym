@@ -131,6 +131,9 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
                 node.execution_time_sec = duration
                 node.output_artifact = current_artifact
                 applied_methods.append(node.method.name)
+                from vipym.utils.resilience import safe_cuda_memory_cleanup
+
+                safe_cuda_memory_cleanup()
                 logger.info(f"Completed stage '{stage_id}' in {duration:.2f}s")
             except Exception as e:
                 tracker.fail_stage(stage_name=stage_id, error=e)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.interfaces.inference import InferenceBackend

@@ -37,6 +37,7 @@ class TestSELifecycleRecipes:
         assert "humaneval" in cfg.evaluation.suites
         assert "bigcodebench" in cfg.evaluation.suites
         assert "aider" in cfg.evaluation.suites
+
     def test_prebuilt_recipes_hub_schemas(self):
         """Verify all 5 pre-built hub recipes parse and validate cleanly."""
         hub_recipes = [

@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 
-from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.runner import BenchmarkRunner
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
 from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
@@ -24,10 +23,7 @@ from vipym.interfaces.inference import GenerationRequest, GenerationResponse, In
 from vipym.telemetry.cost_tracker import CostSummaryReport, InferenceCostTracker
 from vipym.telemetry.profiler import (
     InferenceProfiler,
-    InferenceTelemetryReport,
-    RequestTelemetry,
 )
-
 
 # ============================================================
 # Fixtures & Mocks
@@ -48,7 +44,9 @@ def sandbox_runner():
 
 
 class TimedMockInferenceBackend(InferenceBackend):
-    def __init__(self, latency_ms: float = 20.0, prompt_tokens: int = 100, completion_tokens: int = 50) -> None:
+    def __init__(
+        self, latency_ms: float = 20.0, prompt_tokens: int = 100, completion_tokens: int = 50
+    ) -> None:
         self.latency_ms = latency_ms
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens

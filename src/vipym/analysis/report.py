@@ -65,7 +65,9 @@ class HTMLReportGenerator:
                 else f"{p.quality_score * 100:.1f}%"
             )
             is_top = p.configuration_name == (
-                recommendation.recommended_variant.configuration_name if recommendation.recommended_variant else ""
+                recommendation.recommended_variant.configuration_name
+                if recommendation.recommended_variant
+                else ""
             )
             row_class = "top-row" if is_top else ""
             badge_class = "badge-pareto" if p.is_pareto_optimal else "badge-dominated"
@@ -81,7 +83,7 @@ class HTMLReportGenerator:
                 <td style="color: #38BDF8; font-weight: 600;">${p.cost_per_1m_tokens:.2f}</td>
                 <td>{p.throughput_tok_s:.0f} tok/s</td>
                 <td>{p.latency_p50_ms:.1f} ms</td>
-                <td><code>{p.hardware_recommendation or '1x H100'}</code></td>
+                <td><code>{p.hardware_recommendation or "1x H100"}</code></td>
             </tr>
             """
 
@@ -95,12 +97,12 @@ class HTMLReportGenerator:
 
                 cost_rows_html += f"""
                 <tr>
-                    <td style="font-weight: 600;">{row['name']}</td>
-                    <td>{row.get('type', 'N/A')}</td>
-                    <td><code>{row.get('hardware', 'N/A')}</code></td>
-                    <td>${row['cost_per_1m_tokens']:.2f}</td>
-                    <td style="font-weight: bold;">${row['monthly_spend_usd']:,.0f}</td>
-                    <td>${row['annual_spend_usd']:,.0f}</td>
+                    <td style="font-weight: 600;">{row["name"]}</td>
+                    <td>{row.get("type", "N/A")}</td>
+                    <td><code>{row.get("hardware", "N/A")}</code></td>
+                    <td>${row["cost_per_1m_tokens"]:.2f}</td>
+                    <td style="font-weight: bold;">${row["monthly_spend_usd"]:,.0f}</td>
+                    <td>${row["annual_spend_usd"]:,.0f}</td>
                     <td><span class="{savings_class}">{savings_str}</span></td>
                 </tr>
                 """
@@ -134,7 +136,7 @@ class HTMLReportGenerator:
                         <div class="stat-lbl">Tokens / Second</div>
                     </div>
                     <div class="rec-stat">
-                        <div class="stat-val" style="color: #F472B6;">{top.hardware_recommendation or '1x H100'}</div>
+                        <div class="stat-val" style="color: #F472B6;">{top.hardware_recommendation or "1x H100"}</div>
                         <div class="stat-lbl">Hardware Instance</div>
                     </div>
                 </div>

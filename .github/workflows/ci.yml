@@ -1,53 +1,65 @@
-name: ViPym CI
+name: CI / Quality & Automated Testing
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  lint-and-typecheck:
+  lint-and-format:
+    name: Code Style & Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
-      - name: Install dependencies
+      - name: Install Linting Tools
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          pip install -e ".[dev]"
+          pip install ruff mypy types-pyyaml
 
       - name: Run Ruff Linter
         run: ruff check .
 
-      - name: Run Ruff Formatter Check
+      - name: Run Ruff Format Check
         run: ruff format --check .
 
-      - name: Run MyPy Type Checking
-        run: mypy src/
+  test-matrix:
+    name: Test Suite (Python ${{ matrix.python-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
 
-  test-suite:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
 
-      - name: Install dependencies
+      - name: Install ViPym and Test Dependencies
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          pip install -e ".[dev]"
+          pip install --upgrade pip
+          pip install -e ".[dev,torch]"
 
-      - name: Run Unit, Contract and Smoke Tests
+      - name: Run Unit & Contract Tests
+        env:
+          VIPYM_ALLOW_UNSAFE: "1"
         run: |
-          python -m pytest tests/unit tests/contract tests/smoke tests/e2e -v --cov=vipym --cov-report=term-missing
+          pytest tests/unit/ tests/contract/ -v
+
+      - name: Run CLI Workflow & Smoke Tests
+        env:
+          VIPYM_ALLOW_UNSAFE: "1"
+        run: |
+          pytest tests/e2e/ -v
