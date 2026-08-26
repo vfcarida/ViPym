@@ -50,9 +50,9 @@ ViPym is architected around **strict decoupled symmetry**: compression stages op
 ## 1. Core Subsystems
 
 ### 1. Control Plane & FSM State Machine
-- **Pydantic v2 Configuration Engine** ([src/vipym/config/schema.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/config/schema.py)): Validates recipe files and parameter bounds before compute allocation.
-- **12-State Resumable FSM** ([src/vipym/experiments/state.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/experiments/state.py)): Checkpoints progress at every major milestone (`VALIDATED`, `BASELINE_COMPLETED`, `COMPRESSION_COMPLETED`, `EVALUATION_COMPLETED`, `ANALYSIS_COMPLETED`, `REPORT_COMPLETED`), allowing multi-hour experiments to resume seamlessly after interruptions.
-- **DAG Pipeline Planner** ([src/vipym/compression/dag.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/compression/dag.py)): Resolves stage dependencies using Kahn's topological sort.
+- **Pydantic v2 Configuration Engine** ([src/vipym/config/schema.py](../src/vipym/config/schema.py)): Validates recipe files and parameter bounds before compute allocation.
+- **12-State Resumable FSM** ([src/vipym/experiments/state.py](../src/vipym/experiments/state.py)): Checkpoints progress at every major milestone (`VALIDATED`, `BASELINE_COMPLETED`, `COMPRESSION_COMPLETED`, `EVALUATION_COMPLETED`, `ANALYSIS_COMPLETED`, `REPORT_COMPLETED`), allowing multi-hour experiments to resume seamlessly after interruptions.
+- **DAG Pipeline Planner** ([src/vipym/pipelines/dag.py](../src/vipym/pipelines/dag.py)): Resolves stage dependencies using Kahn's topological sort.
 
 ### 2. Compression Engine
 - **Transforms**: Outlier-suppression rotations (`quarot`, `spinquant`).
@@ -62,10 +62,10 @@ ViPym is architected around **strict decoupled symmetry**: compression stages op
 - **Distillation**: Cross-architecture student-teacher training.
 
 ### 3. Sandboxed Evaluation Runner
-- **gVisor / Docker Isolation** ([src/vipym/evaluation/sandbox/docker_sandbox.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/evaluation/sandbox/docker_sandbox.py)): Executes untrusted generated code in isolated containers with total network lockdown (`--network=none`), memory caps, and process timeouts.
+- **gVisor / Docker Isolation** ([src/vipym/evaluation/sandbox/docker_sandbox.py](../src/vipym/evaluation/sandbox/docker_sandbox.py)): Executes untrusted generated code in isolated containers with total network lockdown (`--network=none`), memory caps, and process timeouts.
 - **Inference Engines**: Integration with `vllm`, `sglang`, and `hf` engines for realistic throughput and latency measurements.
 
 ### 4. Analysis, Pareto Optimization & Reporting
-- **Pareto Frontier Optimizer** ([src/vipym/analysis/pareto.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/analysis/pareto.py)): Multi-objective non-dominated sorting over `(Quality, VRAM, Latency, $/1M tokens)`.
-- **Deployment Recommender** ([src/vipym/analysis/recommender.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/analysis/recommender.py)): Synthesizes ranked deployment strategies and ROI projections.
-- **Unified Generator** ([src/vipym/reporting/generator.py](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/src/vipym/reporting/generator.py)): Produces Plotly interactive 3D/2D visualizers, standalone HTML dashboards, LaTeX publication tables, and Markdown executive summaries.
+- **Pareto Frontier Optimizer** ([src/vipym/analysis/pareto.py](../src/vipym/analysis/pareto.py)): Multi-objective non-dominated sorting over `(Quality, VRAM, Latency, $/1M tokens)`.
+- **Deployment Recommender** ([src/vipym/analysis/recommender.py](../src/vipym/analysis/recommender.py)): Synthesizes ranked deployment strategies and ROI projections.
+- **Unified Generator** ([src/vipym/reporting/generator.py](../src/vipym/reporting/generator.py)): Produces Plotly interactive 3D/2D visualizers, standalone HTML dashboards, LaTeX publication tables, and Markdown executive summaries.

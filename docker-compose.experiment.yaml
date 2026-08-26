@@ -5,7 +5,7 @@ services:
   vipym-experiment-gpu:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.vipym-core
     image: vipym:latest-gpu
     container_name: vipym_gpu_runner
     environment:
@@ -30,7 +30,7 @@ services:
   vipym-experiment-demo:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.vipym-core
     image: vipym:latest-cpu
     container_name: vipym_demo_runner
     environment:
@@ -46,7 +46,7 @@ services:
   vipym-studio:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.vipym-core
     image: vipym:latest-cpu
     container_name: vipym_studio_server
     ports:

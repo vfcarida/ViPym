@@ -7,7 +7,7 @@ Thank you for your interest in contributing to **ViPym**! We welcome contributio
 ## 1. Development Setup
 
 ### Prerequisites
-- Python 3.10, 3.11, or 3.12
+- Python 3.11 or 3.12
 - Git
 - PyTorch 2.4+
 

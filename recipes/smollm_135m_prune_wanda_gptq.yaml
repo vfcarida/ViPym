@@ -13,7 +13,8 @@ model:
 
 compression_pipeline:
   - stage_id: "prune_50"
-    method: "wanda"
+    method: "prune_wanda"
+    scheme: "UNSTRUCTURED_SPARSITY"
     dependencies: []
     calibration:
       dataset_name: "wikitext2"
@@ -26,6 +27,7 @@ compression_pipeline:
 
   - stage_id: "quantize_after_prune"
     method: "gptq"
+    scheme: "W4A16"
     dependencies: ["prune_50"]
     parameters:
       bits: 4

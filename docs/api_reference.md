@@ -37,10 +37,11 @@ Concurrent benchmark evaluation engine with real-time inference telemetry profil
 
 ## 4. Multi-Objective Analysis & Statistics
 
-### `vipym.analysis.pareto.ParetoOptimizer`
+### `vipym.analysis.pareto.ParetoFrontierOptimizer`
 Computes the exact non-dominated Pareto frontier across Quality, Latency, VRAM, and Cost.
-- **`compute_pareto_frontier(points: list[ParetoPoint]) -> list[ParetoPoint]`**: Returns the global non-dominated candidate set.
-- **`calculate_hypervolume(frontier: list[ParetoPoint], reference_point: tuple[float, ...]) -> float`**: Computes the hypervolume indicator for convergence comparison.
+- **`compute_pareto_frontier(points: list[ParetoPoint], min_quality: float | None, max_cost: float | None, ...) -> list[ParetoPoint]`**: Returns the global non-dominated candidate set with optional constraint filtering.
+- **`fast_non_dominated_sort(points: list[ParetoPoint]) -> list[list[ParetoPoint]]`**: Performs fast NSGA-II non-dominated sorting partitioning points into successive Pareto fronts.
+- **`find_closest_to_utopia(points: list[ParetoPoint]) -> ParetoPoint | None`**: Identifies candidate with minimum normalized Euclidean distance to ideal Utopia point.
 
 ### `vipym.analysis.statistics.StatisticalAnalyzer`
 Performs bootstrap confidence interval estimation and non-parametric hypothesis testing.

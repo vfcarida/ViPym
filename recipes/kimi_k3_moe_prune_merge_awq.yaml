@@ -1,66 +1,84 @@
-"""Recipe: Kimi K3 MoE compression — Profile → Prune 25% → Merge 50% → AWQ 4-bit.
+# ViPym Production Recipe: Kimi K3 MoE Compression Pipeline
+# Architecture: Kimi K3 (2.8T MoE) -> Wanda Pruning 25% -> AWQ 4-bit Quantization -> FP8 KV-Cache
+# Target: Production deployment on AWS p5.48xlarge cluster
 
-Demonstrates full P006/P017 pipeline with router distillation.
-"""
-compression:
-  model_id: moonshotai/Kimi-K3-MoE
+experiment_id: recipe-kimi-k3-moe-prune-merge-awq
+seed: 42
+description: "Kimi K3 MoE compression pipeline: Expert Pruning, AWQ 4-bit quantization, and FP8 KV-Cache."
 
-  stages:
-    # Stage 1: Profile expert utilisation on calibration data
-    - id: profile_experts
-      method: expert_profile
-      parameters:
-        dataset: c4
-        num_samples: 1024
-        scoring_strategy: combined       # 0.5·freq + 0.3·magnitude + 0.2·activation
-        output_file: expert_stats.json
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
 
-    # Stage 2: Prune bottom-25% least-utilised experts per layer
-    - id: prune_experts
-      method: expert_prune
-      dependencies: [profile_experts]
-      parameters:
-        strategy: importance             # use combined importance score
-        prune_ratio: 0.25
-        per_layer: true
-        retrain_router: true
-        router_steps: 200
-        router_lr: 1e-4
-        # KL-guided router distillation (P017) — optional high-quality step
-        router_distillation:
-          steps: 500
-          lr: 1e-4
-          calibration_samples: 1024
-          balance_loss_weight: 0.10
-          kl_loss_weight: 1.00
-          entropy_loss_weight: 0.01
-          warmup_steps: 50
-          temperature: 1.0
-          max_utilisation_ratio: 3.0
-          log_every: 100
+compression_pipeline:
+  - stage_id: "prune_experts"
+    method: "prune_wanda"
+    scheme: "UNSTRUCTURED_SPARSITY"
+    dependencies: []
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      sparsity: 0.25
+      prune_type: "unstructured"
+      per_expert_sparsity: true
 
-    # Stage 3: Merge most similar expert pairs until 50% of remaining remain
-    - id: merge_experts
-      method: expert_merge
-      dependencies: [prune_experts]
-      parameters:
-        merge_strategy: frequency_weighted
-        similarity_threshold: 0.80
-        min_experts_per_layer: 1
-        retrain_router: true
-        router_steps: 200
-        router_lr: 1e-4
+  - stage_id: "quantize_awq"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: ["prune_experts"]
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
 
-    # Stage 4: Quantise surviving experts to 4-bit AWQ
-    - id: quantize_awq
-      method: awq
-      dependencies: [merge_experts]
-      parameters:
-        w_bit: 4
-        group_size: 128
-        zero_point: true
-        moe_expert_bits: 4
-        moe_shared_bits: 8            # shared attention layers stay at 8-bit
-        calibration_dataset: wikitext2
-        num_calibration_samples: 512
-        seqlen: 2048
+  - stage_id: "kv_cache_fp8"
+    method: "kv_cache_fp8"
+    scheme: "FP8"
+    dependencies: ["quantize_awq"]
+    parameters:
+      kv_dtype: "fp8_e4m3"
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 64
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "swebench"
+  timeout_per_task_sec: 25
+  temperature: 0.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 32.77
+  active_gpu_count: 64
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 1600.0
+
+infrastructure:
+  provider: "aws_ec2"
+  instance_type: "p5.48xlarge"

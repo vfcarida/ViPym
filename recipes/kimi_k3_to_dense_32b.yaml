@@ -1,84 +1,87 @@
-"""Recipe: Kimi K3 (2.8T MoE) → Dense 32B distillation pipeline.
+# ViPym Production Recipe: Kimi K3 (2.8T MoE) to Dense 32B Distillation Pipeline
+# Pipeline stages:
+#   1. prune_experts   - Wanda unstructured pruning on least active routing paths
+#   2. distill_32b     - Distill MoE teacher into Dense Qwen2.5-32B student model
+#   3. quantize_awq    - 4-bit AWQ quantization on student model
 
-Pipeline stages:
-  1. profile_experts — score expert utilisation on calibration data
-  2. prune_experts   — remove bottom-25% experts per layer (+ KL router distillation)
-  3. merge_experts   — merge similar experts to 50% of remaining
-  4. distill_32b     — MoE teacher → dense Qwen2.5-32B student
-"""
-compression:
-  model_id: moonshotai/Kimi-K3-MoE
+experiment_id: recipe-kimi-k3-to-dense-32b-distillation
+seed: 42
+description: "Kimi K3 (2.8T MoE) distillation into dense 32B student model with response and logit matching."
 
-  stages:
-    # ── Stage 1: Expert utilisation profiling ──────────────────────────────
-    - id: profile_experts
-      method: expert_profile
-      parameters:
-        dataset: c4
-        num_samples: 1024
-        scoring_strategy: combined          # 0.5·freq + 0.3·magnitude + 0.2·activation
-        output_file: expert_stats.json
+model:
+  id: "moonshotai/Kimi-K3"
+  revision: "main"
+  trust_remote_code: true
+  custom_adapter_cls: "kimi_k3"
 
-    # ── Stage 2: Prune bottom-25% experts per layer ────────────────────────
-    - id: prune_experts
-      method: expert_prune
-      dependencies: [profile_experts]
-      parameters:
-        strategy: importance
-        prune_ratio: 0.25
-        per_layer: true
-        retrain_router: true
-        router_steps: 200
-        router_distillation:
-          steps: 500
-          lr: 1e-4
-          calibration_samples: 1024
-          balance_loss_weight: 0.10
-          kl_loss_weight: 1.00
-          temperature: 1.0
+compression_pipeline:
+  - stage_id: "prune_experts"
+    method: "prune_wanda"
+    scheme: "UNSTRUCTURED_SPARSITY"
+    dependencies: []
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      sparsity: 0.25
+      prune_type: "unstructured"
 
-    # ── Stage 3: Merge similar experts ─────────────────────────────────────
-    - id: merge_experts
-      method: expert_merge
-      dependencies: [prune_experts]
-      parameters:
-        merge_strategy: frequency_weighted
-        similarity_threshold: 0.80
-        min_experts_per_layer: 1
-        retrain_router: true
-        router_steps: 200
+  - stage_id: "distill_32b"
+    method: "distill_response"
+    scheme: "DISTILL_STUDENT"
+    dependencies: ["prune_experts"]
+    parameters:
+      student_model_id: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      num_samples: 1000
+      temperature: 1.0
 
-    # ── Stage 4: Distil compressed MoE → Dense 32B ─────────────────────────
-    - id: distill_32b
-      method: distillation
-      dependencies: [merge_experts]
-      parameters:
-        teacher_model: moonshotai/Kimi-K3-MoE   # compressed MoE from stage 3
-        student:
-          architecture: qwen2
-          size: 32b
-          init_from: Qwen/Qwen2.5-32B           # warm-start from pretrained
-        training:
-          epochs: 3
-          batch_size: 8
-          gradient_accumulation: 16
-          learning_rate: 2e-5
-          warmup_ratio: 0.1
-          temperature: 2.0
-          alpha: 0.7                             # 70% KL distil, 30% CE
-          deepspeed_stage: 3                     # ZeRO-3 for 32B
-          save_every_steps: 1000
-          eval_every_steps: 500
-          eval_benchmarks: [humaneval, bigcodebench_lite]
-          gradient_checkpointing: true
-          loss_type: forward_kl
-        data:
-          synthetic_samples: 500000
-          code_ratio: 0.8
-          execution_filter: true                 # keep only passing code samples
-          sandbox_timeout: 30
-          cache_teacher_logits: true             # cache on disk for efficiency
-          cache_dir: ./teacher_logit_cache_kimi_32b
-          max_seq_len: 2048
-          extra_corpora:
-            - bigcode/the-stack-v2-train-smol-ids
+  - stage_id: "quantize_awq"
+    method: "awq"
+    scheme: "W4A16"
+    dependencies: ["distill_32b"]
+    calibration:
+      dataset_name: "bigcode/the-stack"
+      num_samples: 512
+      sequence_length: 2048
+    parameters:
+      bits: 4
+      group_size: 128
+      zero_point: true
+
+serving:
+  backend: "vllm"
+  tensor_parallel_size: 4
+  max_model_len: 16384
+  gpu_memory_utilization: 0.90
+  kv_cache_dtype: "fp8_e4m3"
+
+evaluation:
+  suites:
+    - "humaneval"
+    - "mbpp"
+    - "swebench"
+  timeout_per_task_sec: 25
+  temperature: 0.0
+  max_new_tokens: 2048
+  pass_k_values: [1]
+  isolate_with_gvisor: true
+
+cost_assumptions:
+  provider: "aws"
+  region: "us-east-1"
+  pricing_source: "config"
+  aws_ec2_hourly_rate: 16.00
+  active_gpu_count: 4
+
+optimization:
+  objectives:
+    - "maximize_quality"
+    - "minimize_latency"
+    - "minimize_cost"
+  min_acceptable_pass_at_1: 0.70
+  max_acceptable_vram_gb: 80.0
+
+infrastructure:
+  provider: "aws_ec2"
+  instance_type: "p4de.24xlarge"

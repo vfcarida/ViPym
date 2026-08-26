@@ -8,14 +8,17 @@ Operational guide for executing large-scale LLM compression, evaluating massive 
 
 ### Running a Production Recipe
 ```bash
-vipym run recipes/kimi-k3-full.yaml --output-dir /opt/vipym/results/kimi_k3_run1
+vipym run recipes/kimi-k3-full.yaml --output /opt/vipym/results/kimi_k3_run1
 ```
 
 ### Resuming an Interrupted / Evicted Experiment
-ViPym automatically saves checkpoint state machines in `manifest.json`. If a spot instance is terminated or a process killed:
+ViPym automatically saves checkpoint state machines in `manifest.json`. If a spot instance is terminated or a process killed, simply re-run the command (resumption is enabled by default):
 ```bash
 # Resume from the exact stage that was running (no redundant compute)
-vipym run recipes/kimi-k3-full.yaml --output-dir /opt/vipym/results/kimi_k3_run1 --resume
+vipym run recipes/kimi-k3-full.yaml --output /opt/vipym/results/kimi_k3_run1
+
+# Or force restart from scratch ignoring prior checkpoints:
+vipym run recipes/kimi-k3-full.yaml --output /opt/vipym/results/kimi_k3_run1 --no-resume
 ```
 
 ---
