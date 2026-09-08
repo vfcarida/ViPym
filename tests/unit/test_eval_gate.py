@@ -256,3 +256,30 @@ class TestGateCLI:
 
         assert res.exit_code == 1
         assert "FAIL" in res.output
+
+    def test_cli_gate_run_loads_actual_eval_artifacts(self, tmp_path: Path):
+        cfg_file = tmp_path / "gates.yaml"
+        cfg_file.write_text(
+            "gates:\n  se_production:\n    min_humaneval_pass1: 0.85\n", encoding="utf-8"
+        )
+        model_dir = tmp_path / "eval_model"
+        model_dir.mkdir()
+        (model_dir / "scores.json").write_text(
+            '{"humaneval": 0.88, "se_composite": 0.90}', encoding="utf-8"
+        )
+
+        runner = CliRunner()
+        res = runner.invoke(
+            app,
+            [
+                "gate",
+                "run",
+                "--config",
+                str(cfg_file),
+                "--model",
+                str(model_dir),
+            ],
+        )
+        assert res.exit_code == 0
+        assert "Loaded 2 metric(s)" in res.output
+        assert "PASS" in res.output

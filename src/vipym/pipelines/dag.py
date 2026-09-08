@@ -155,3 +155,7 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
 
         current_artifact.applied_methods = applied_methods
         return current_artifact
+
+
+# Alias for cross-namespace consistency
+DAGCompressionPipeline = DirectedAcyclicCompressionPipeline

@@ -18,13 +18,6 @@ from vipym.core.logger import get_logger
 from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
 from vipym.interfaces.model import ModelMetadata, PluginCapability
 
-_warnings.warn(
-    "vipym.compression.distillation.logit_distill is deprecated. "
-    "Use vipym.distillation (DistillationMethod) instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 logger = get_logger(__name__)
 
 
@@ -41,6 +34,12 @@ class LogitDistillationMethod(CompressionMethod):
         temperature: float = 2.0,
         alpha_ce: float = 0.5,
     ) -> None:
+        _warnings.warn(
+            "vipym.compression.distillation.logit_distill is deprecated. "
+            "Use vipym.distillation (DistillationMethod) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.student_model_id = student_model_id
         self.temperature = temperature
         self.alpha_ce = alpha_ce

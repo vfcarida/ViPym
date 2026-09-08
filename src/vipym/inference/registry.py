@@ -14,8 +14,16 @@ class InferenceRegistry:
     _registry: dict[str, Any] = {}
 
     @classmethod
-    def register(cls, name: str, backend_cls: Any) -> None:
-        cls._registry[name.lower()] = backend_cls
+    def register(cls, name: str, backend_cls: Any = None) -> Any:
+        """Register an inference backend directly or as a decorator."""
+
+        def decorator(subclass: Any) -> Any:
+            cls._registry[name.lower()] = subclass
+            return subclass
+
+        if backend_cls is not None:
+            return decorator(backend_cls)
+        return decorator
 
     @classmethod
     def get(cls, name: str) -> InferenceBackend:

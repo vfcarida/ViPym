@@ -1,5 +1,9 @@
 """Dynamic Model Adapter Registry."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from vipym.core.exceptions import ModelAdapterError
 from vipym.interfaces.model import ModelAdapter
 
@@ -10,9 +14,16 @@ class ModelRegistry:
     _registry: dict[str, type[ModelAdapter]] = {}
 
     @classmethod
-    def register(cls, name: str, adapter_cls: type[ModelAdapter]) -> None:
-        """Register a model adapter class."""
-        cls._registry[name.lower()] = adapter_cls
+    def register(cls, name: str, adapter_cls: type[ModelAdapter] | None = None) -> Any:
+        """Register a model adapter class directly or as a decorator."""
+
+        def decorator(subclass: type[ModelAdapter]) -> type[ModelAdapter]:
+            cls._registry[name.lower()] = subclass
+            return subclass
+
+        if adapter_cls is not None:
+            return decorator(adapter_cls)
+        return decorator
 
     @classmethod
     def get(cls, name: str) -> ModelAdapter:

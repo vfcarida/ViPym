@@ -31,13 +31,14 @@ All compression techniques inherit from `CompressionMethod` and register in `Com
 
 ```python
 # src/vipym/compression/methods/my_method.py
-from typing import Any
 from pathlib import Path
+from typing import Any
 import torch.nn as nn
 
-from vipym.interfaces.compression import CompressionMethod, PluginCapability
 from vipym.compression.registry import CompressionRegistry
-from vipym.core.types import CompressionArtifact, SupportedDtype, ComputeArchitecture
+from vipym.core.constants import ComputeArchitecture, SupportedDtype
+from vipym.interfaces.compression import CompressionArtifact, CompressionMethod
+from vipym.interfaces.model import PluginCapability
 
 
 @CompressionRegistry.register("my_method")
@@ -52,8 +53,8 @@ class MyCustomCompression(CompressionMethod):
 
     def get_capabilities(self) -> PluginCapability:
         return PluginCapability(
-            supported_dtypes=[SupportedDtype.INT4, SupportedDtype.FP16],
-            supported_architectures=[ComputeArchitecture.DENSE, ComputeArchitecture.MOE],
+            supported_dtypes={SupportedDtype.INT4, SupportedDtype.FP16},
+            supported_architectures={ComputeArchitecture.DENSE, ComputeArchitecture.MOE},
             requires_calibration=True,
             supports_moe=True,
             supported_runtimes=["vllm", "hf"],
@@ -90,8 +91,9 @@ All benchmark suites inherit from `EvaluationSuite` and register in `EvaluationR
 ```python
 # src/vipym/evaluation/suites/my_suite.py
 from typing import Any
-from vipym.interfaces.evaluation import EvaluationSuite, BenchmarkTask, BenchmarkTaskResult
+
 from vipym.evaluation.registry import EvaluationRegistry
+from vipym.interfaces.evaluation import BenchmarkTask, EvaluationSuite, TaskResult
 
 
 @EvaluationRegistry.register("my_suite")
@@ -106,26 +108,35 @@ class MyCustomEvaluationSuite(EvaluationSuite):
 
     def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         # Return list of BenchmarkTask items
-        return [
+        sample_tasks = [
             BenchmarkTask(
                 task_id="task_001",
+                suite=self.name,
                 prompt="def add(a, b):\n    '''Return sum of a and b.'''\n",
                 test_code="assert add(2, 3) == 5\nassert add(-1, 1) == 0",
                 entry_point="add",
             )
-        ][:limit]
+        ]
+        return sample_tasks[:limit] if limit else sample_tasks
 
-    def evaluate_task(
-        self, task: BenchmarkTask, generated_code: str, sandbox: Any
-    ) -> BenchmarkTaskResult:
+    def evaluate_response(
+        self, task: BenchmarkTask, generated_text: str, sandbox_runner: Any
+    ) -> TaskResult:
         # Execute in sandbox and return task result
-        result = sandbox.run_code(task.prompt + generated_code + "\n" + task.test_code)
-        return BenchmarkTaskResult(
+        full_code = f"{generated_text}\n{task.test_code}"
+        res = sandbox_runner.execute_in_sandbox(full_code, timeout_sec=task.timeout_seconds)
+        return TaskResult(
             task_id=task.task_id,
-            passed=result.exit_code == 0,
-            compiled=result.compiled,
-            execution_time_sec=result.duration_sec,
-            error_message=result.stderr if result.exit_code != 0 else None,
+            suite=self.name,
+            prompt=task.prompt,
+            generated_solution=generated_text,
+            passed=res.passed,
+            compile_success=res.compile_success,
+            unit_tests_passed=1 if res.passed else 0,
+            unit_tests_total=1,
+            execution_time_ms=res.execution_time_ms,
+            error_message=res.stderr if not res.passed else None,
+            stdout=res.stdout,
         )
 ```
 

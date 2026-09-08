@@ -153,6 +153,83 @@ class GPTQCompressionMethod(CompressionMethod):
                     synthetic_samples.append(torch.randn(1, seq_length))
             return synthetic_samples
 
+    def _collect_activation_hessian(
+        self,
+        model: nn.Module,
+        linear_layers: list[tuple[str, nn.Module]],
+        calib_samples: list[Any],
+        tokenizer: Any = None,
+    ) -> dict[str, torch.Tensor]:
+        """Collect empirical activation energy / Hessian diagonal using PyTorch forward hooks."""
+        hessian_diag_map: dict[str, torch.Tensor] = {}
+        if not calib_samples:
+            return hessian_diag_map
+
+        sample_count_map: dict[str, int] = {}
+        hooks = []
+        for name, module in linear_layers:
+
+            def _make_hook(layer_name: str):
+                def _hook(mod: nn.Module, inp: tuple[Any, ...], outp: Any) -> None:
+                    if inp and isinstance(inp[0], torch.Tensor):
+                        x = inp[0].detach()
+                        in_feat = x.shape[-1]
+                        x_flat = x.view(-1, in_feat).float()
+                        energy = torch.sum(x_flat**2, dim=0)
+                        num_tokens = max(1, x_flat.shape[0])
+                        if layer_name not in hessian_diag_map:
+                            hessian_diag_map[layer_name] = energy / num_tokens
+                            sample_count_map[layer_name] = 1
+                        else:
+                            hessian_diag_map[layer_name] += energy / num_tokens
+                            sample_count_map[layer_name] += 1
+
+                return _hook
+
+            hooks.append(module.register_forward_hook(_make_hook(name)))
+
+        try:
+            device = next(model.parameters()).device
+            was_training = model.training
+            model.eval()
+            with torch.no_grad():
+                for sample in calib_samples[:16]:
+                    try:
+                        if isinstance(sample, dict):
+                            inp = {
+                                k: v.to(device) if isinstance(v, torch.Tensor) else v
+                                for k, v in sample.items()
+                            }
+                            model(**inp)
+                        elif isinstance(sample, torch.Tensor):
+                            model(sample.to(device))
+                        elif (
+                            isinstance(sample, str)
+                            and tokenizer is not None
+                            and callable(tokenizer)
+                        ):
+                            tokens = tokenizer(
+                                sample, truncation=True, max_length=512, return_tensors="pt"
+                            )
+                            inp = {k: v.to(device) for k, v in tokens.items()}
+                            model(**inp)
+                    except Exception:
+                        continue
+            model.train(was_training)
+            for k in hessian_diag_map:
+                count = max(1, sample_count_map.get(k, 1))
+                hessian_diag_map[k] = hessian_diag_map[k] / count
+        except Exception:
+            pass
+        finally:
+            for h in hooks:
+                try:
+                    h.remove()
+                except Exception:
+                    pass
+
+        return hessian_diag_map
+
     def _quantize_tensor_gptq(
         self,
         tensor: torch.Tensor,
@@ -293,6 +370,14 @@ class GPTQCompressionMethod(CompressionMethod):
             total_layers = len(linear_layers)
             logger.info(f"Quantizing {total_layers} linear layers with GPTQ...")
 
+            # Collect empirical Hessian diagonal from calibration forward passes
+            hessian_map = self._collect_activation_hessian(
+                model=model,
+                linear_layers=linear_layers,
+                calib_samples=calib_samples,
+                tokenizer=tokenizer,
+            )
+
             with torch.no_grad():
                 for idx, (name, module) in enumerate(linear_layers):
                     layer_start = time.perf_counter()
@@ -307,7 +392,13 @@ class GPTQCompressionMethod(CompressionMethod):
                     is_conv1d = module.__class__.__name__ == "Conv1D"
                     w_tensor = module.weight.data.t() if is_conv1d else module.weight.data
                     in_features = w_tensor.shape[1]
-                    h_diag = torch.ones(in_features, device=w_tensor.device)
+
+                    # Use empirical Hessian diagonal from activations if available, else deterministic weight energy
+                    h_diag = hessian_map.get(name)
+                    if h_diag is None or h_diag.shape[0] != in_features:
+                        h_diag = torch.mean(w_tensor.float().abs(), dim=0) + damp_percent
+                    else:
+                        h_diag = (h_diag + damp_percent).to(w_tensor.device)
 
                     q_weight, _, _ = self._quantize_tensor_gptq(
                         tensor=w_tensor,

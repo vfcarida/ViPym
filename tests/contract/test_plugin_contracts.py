@@ -1,4 +1,4 @@
-"""Contract tests verifying that all registered plugins adhere to ABC specifications."""
+import pytest
 
 from vipym.compression.registry import CompressionRegistry
 from vipym.evaluation.registry import EvaluationRegistry
@@ -10,7 +10,22 @@ from vipym.interfaces.model import ModelAdapter
 from vipym.models.registry import ModelRegistry
 
 
-def test_model_adapters_contract():
+@pytest.fixture(autouse=True)
+def mock_datasets_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure contract tests execute 100% offline without contacting Hugging Face Hub."""
+
+    def _mock_load_dataset(*args: object, **kwargs: object) -> None:
+        raise ConnectionError("Contract tests run strictly in offline mode.")
+
+    try:
+        import datasets  # type: ignore[import]
+
+        monkeypatch.setattr(datasets, "load_dataset", _mock_load_dataset)
+    except ImportError:
+        pass
+
+
+def test_model_adapters_contract() -> None:
     for _name, adapter_cls in ModelRegistry.list_adapters().items():
         adapter = adapter_cls()
         assert isinstance(adapter, ModelAdapter)

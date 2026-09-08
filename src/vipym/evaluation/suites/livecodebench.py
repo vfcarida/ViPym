@@ -1,7 +1,7 @@
-"""MBPP (Mostly Basic Python Problems) Benchmark Suite (500 sanitized tasks).
+"""LiveCodeBench Suite: Contamination-free coding benchmark.
 
-Implements the Google MBPP benchmark with assertion-based test execution
-and pass@k (k=1, 10, 100) scoring.
+Implements competitive programming and dynamic algorithmic tasks with strict
+test harness verification, supporting both HuggingFace datasets and bundled canonical tasks.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.sandbox.docker_sandbox import SandboxedCodeRunner
 from vipym.evaluation.sandbox.security_profile import SandboxSecurityConfig
 from vipym.evaluation.scoring import calculate_pass_at_k_metrics
-from vipym.evaluation.suites.livecodebench import LiveCodeBenchSuite
 from vipym.interfaces.evaluation import (
     BenchmarkTask,
     EvaluationSuite,
@@ -25,134 +24,208 @@ from vipym.interfaces.inference import GenerationRequest, InferenceBackend
 
 logger = get_logger(__name__)
 
-__all__ = ["LiveCodeBenchSuite", "MBPPSuite"]
-
 # ---------------------------------------------------------------------------
-# Canonical MBPP Fallback Tasks
+# Canonical Bundled Tasks for LiveCodeBench
 # ---------------------------------------------------------------------------
 
-_CANONICAL_MBPP_PROBLEMS: list[dict[str, Any]] = [
+_CANONICAL_LCB_PROBLEMS: list[dict[str, Any]] = [
     {
-        "task_id": "MBPP/1",
-        "entry_point": "min_cost",
-        "prompt": '"""Write a function to find the minimum cost path to reach (m, n) from (0, 0) for the given cost matrix cost[][] and a position (m, n) in cost[][]."""\n',
-        "canonical_solution": """def min_cost(cost, m, n):
-    tc = [[0 for x in range(n + 1)] for x in range(m + 1)]
-    tc[0][0] = cost[0][0]
-    for i in range(1, m + 1):
-        tc[i][0] = tc[i - 1][0] + cost[i][0]
-    for j in range(1, n + 1):
-        tc[0][j] = tc[0][j - 1] + cost[0][j]
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            tc[i][j] = min(tc[i - 1][j - 1], tc[i - 1][j], tc[i][j - 1]) + cost[i][j]
-    return tc[m][n]
+        "task_id": "LCB/2026_01",
+        "entry_point": "longest_valid_subsequence",
+        "prompt": '''def longest_valid_subsequence(nums: list[int], k: int) -> int:
+    """Given an integer array `nums` and an integer `k`, return the length of the longest
+    subsequence such that the absolute difference between any two consecutive elements
+    in the subsequence is at most `k`.
+
+    >>> longest_valid_subsequence([1, 4, 3, 2, 7, 5], 1)
+    3
+    >>> longest_valid_subsequence([10, 20, 30], 5)
+    1
+    """
+''',
+        "canonical_solution": """def longest_valid_subsequence(nums: list[int], k: int) -> int:
+    if not nums:
+        return 0
+    n = len(nums)
+    dp = [1] * n
+    for i in range(n):
+        for j in range(i):
+            if abs(nums[i] - nums[j]) <= k:
+                if dp[j] + 1 > dp[i]:
+                    dp[i] = dp[j] + 1
+    return max(dp)
 """,
         "test_code": """
-assert min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2) == 8
-assert min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2) == 12
-assert min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2) == 16
+def check(candidate):
+    assert candidate([1, 4, 3, 2, 7, 5], 1) == 3
+    assert candidate([10, 20, 30], 5) == 1
+    assert candidate([1, 2, 3, 4, 5], 2) == 5
+    assert candidate([5, 1, 4, 2, 3], 1) == 3
+    assert candidate([], 5) == 0
+    assert candidate([42], 0) == 1
+
+check(longest_valid_subsequence)
 """,
     },
     {
-        "task_id": "MBPP/2",
-        "entry_point": "similar_elements",
-        "prompt": '"""Write a function to find the shared elements in two tuples."""\n',
-        "canonical_solution": """def similar_elements(test_tup1, test_tup2):
-    res = tuple(set(test_tup1) & set(test_tup2))
-    return res
+        "task_id": "LCB/2026_02",
+        "entry_point": "min_operations_to_balance",
+        "prompt": '''def min_operations_to_balance(s: str) -> int:
+    """Given a string `s` consisting only of '(' and ')', return the minimum number of
+    insertions or deletions needed to make the string valid/balanced.
+
+    >>> min_operations_to_balance("())")
+    1
+    >>> min_operations_to_balance("(((")
+    3
+    >>> min_operations_to_balance("()()")
+    0
+    """
+''',
+        "canonical_solution": """def min_operations_to_balance(s: str) -> int:
+    open_count = 0
+    needed_ops = 0
+    for char in s:
+        if char == '(':
+            open_count += 1
+        elif char == ')':
+            if open_count > 0:
+                open_count -= 1
+            else:
+                needed_ops += 1
+    return needed_ops + open_count
 """,
         "test_code": """
-assert set(similar_elements((3, 4, 5, 6), (5, 7, 4, 10))) == set((4, 5))
-assert set(similar_elements((1, 2, 3, 4), (5, 4, 3, 7))) == set((3, 4))
-assert set(similar_elements((11, 12, 14, 13), (17, 15, 14, 13))) == set((13, 14))
+def check(candidate):
+    assert candidate("())") == 1
+    assert candidate("(((") == 3
+    assert candidate("()()") == 0
+    assert candidate("()))((") == 4
+    assert candidate("") == 0
+    assert candidate(")(()(") == 3
+
+check(min_operations_to_balance)
 """,
     },
     {
-        "task_id": "MBPP/3",
-        "entry_point": "is_not_prime",
-        "prompt": '"""Write a python function to identify non-prime numbers."""\n',
-        "canonical_solution": """import math
+        "task_id": "LCB/2026_03",
+        "entry_point": "max_subarray_xor",
+        "prompt": '''def max_subarray_xor(nums: list[int]) -> int:
+    """Given an integer array `nums`, return the maximum possible bitwise XOR sum
+    of any non-empty contiguous subarray.
 
-def is_not_prime(n):
-    if n <= 1:
-        return True
-    for i in range(2, int(math.isqrt(n)) + 1):
-        if n % i == 0:
-            return True
-    return False
+    >>> max_subarray_xor([1, 2, 3, 4])
+    7
+    >>> max_subarray_xor([8, 1, 2, 12, 7, 6])
+    15
+    """
+''',
+        "canonical_solution": """def max_subarray_xor(nums: list[int]) -> int:
+    if not nums:
+        return 0
+    max_xor = 0
+    prefix = 0
+    trie: dict[Any, Any] = {}
+
+    def insert(val: int) -> None:
+        node = trie
+        for bit in range(31, -1, -1):
+            b = (val >> bit) & 1
+            if b not in node:
+                node[b] = {}
+            node = node[b]
+
+    def query(val: int) -> int:
+        node = trie
+        res = 0
+        for bit in range(31, -1, -1):
+            b = (val >> bit) & 1
+            opp = 1 - b
+            if opp in node:
+                res |= (1 << bit)
+                node = node[opp]
+            elif b in node:
+                node = node[b]
+            else:
+                break
+        return res
+
+    insert(0)
+    for x in nums:
+        prefix ^= x
+        insert(prefix)
+        max_xor = max(max_xor, query(prefix))
+    return max_xor
 """,
         "test_code": """
-assert is_not_prime(2) == False
-assert is_not_prime(10) == True
-assert is_not_prime(35) == True
-assert is_not_prime(37) == False
+def check(candidate):
+    assert candidate([1, 2, 3, 4]) == 7
+    assert candidate([8, 1, 2, 12, 7, 6]) == 15
+    assert candidate([4, 6]) == 6
+    assert candidate([5]) == 5
+
+check(max_subarray_xor)
 """,
     },
 ]
 
 
 # ---------------------------------------------------------------------------
-# MBPPSuite Implementation
+# LiveCodeBench Suite Implementation
 # ---------------------------------------------------------------------------
 
 
-class MBPPSuite(EvaluationSuite):
-    """MBPP (Mostly Basic Python Problems) Benchmark Adapter (500 sanitized tasks)."""
+class LiveCodeBenchSuite(EvaluationSuite):
+    """LiveCodeBench: Continuously updated contamination-free coding benchmark."""
 
     def __init__(
         self,
-        timeout_per_task: int = 15,
+        timeout_per_task: int = 20,
         num_samples_per_task: int = 1,
         k_values: list[int] | None = None,
         parallel_tasks: int = 4,
     ) -> None:
         self.timeout_per_task = timeout_per_task
         self.num_samples_per_task = num_samples_per_task
-        self.k_values = k_values or [1, 10, 100]
+        self.k_values = k_values or [1, 5, 10]
         self.parallel_tasks = parallel_tasks
 
     @property
     def name(self) -> str:
-        return "mbpp"
+        return "livecodebench"
 
     @property
     def version(self) -> str:
-        return "sanitized_v1.0"
-
-    # ------------------------------------------------------------------
-    # Task Loading
-    # ------------------------------------------------------------------
+        return "v2026.08"
 
     def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
-        """Load sanitized MBPP tasks from Hugging Face or fallback canonical dataset."""
+        """Load LiveCodeBench tasks from HF or fallback to verified canonical tasks."""
         tasks: list[BenchmarkTask] = []
-
         try:
             from datasets import load_dataset  # type: ignore[import]
 
-            hf_ds = load_dataset("google-research-datasets/mbpp", "sanitized", split="test")
+            hf_ds = load_dataset("livecodebench/code_generation_lite", split="test")
             for item in hf_ds:
-                test_code = "\n".join(item.get("test_list", []))
                 tasks.append(
                     BenchmarkTask(
-                        task_id=f"MBPP/{item['task_id']}",
+                        task_id=f"LCB/{item.get('question_id', len(tasks))}",
                         suite=self.name,
-                        entry_point=item.get("entry_point", f"task_{item['task_id']}"),
-                        prompt=item.get("prompt", ""),
-                        canonical_solution=item.get("code", ""),
-                        test_code=test_code,
+                        entry_point=item.get("entry_point", "solve"),
+                        prompt=item.get("prompt", item.get("question_content", "")),
+                        canonical_solution=item.get("canonical_solution", ""),
+                        test_code=item.get("test", ""),
+                        release_date=str(item.get("contest_date", "2026-01-01")),
                         timeout_seconds=self.timeout_per_task,
                         metadata={
-                            "test_imports": item.get("test_imports", []),
-                            "entry_point": item.get("entry_point", ""),
+                            "difficulty": item.get("difficulty", "medium"),
+                            "contest_id": item.get("contest_id", ""),
                         },
                     )
                 )
                 if limit and len(tasks) >= limit:
                     break
         except Exception:  # noqa: BLE001
-            for item in _CANONICAL_MBPP_PROBLEMS:
+            for item in _CANONICAL_LCB_PROBLEMS:
                 tasks.append(
                     BenchmarkTask(
                         task_id=item["task_id"],
@@ -161,6 +234,7 @@ class MBPPSuite(EvaluationSuite):
                         prompt=item["prompt"],
                         canonical_solution=item["canonical_solution"],
                         test_code=item["test_code"],
+                        release_date="2026-07-20",
                         timeout_seconds=self.timeout_per_task,
                         metadata={"entry_point": item["entry_point"]},
                     )
@@ -170,21 +244,25 @@ class MBPPSuite(EvaluationSuite):
 
         return tasks[:limit] if limit else tasks
 
-    # ------------------------------------------------------------------
-    # Prompt Formatting
-    # ------------------------------------------------------------------
-
     def format_prompt(self, task: BenchmarkTask, tokenizer: Any | None = None) -> str:
-        """Format MBPP instructions prompt."""
+        """Format prompt for the code generator."""
         return (
-            "You are an expert Python programmer.\n"
+            "You are an expert algorithmic programmer.\n"
             f"{task.prompt}\n"
-            "Write the complete Python function implementation in a ```python block.\n"
+            "Implement the function with optimal time and space complexity.\n"
+            "Return ONLY the executable Python code inside a ```python block.\n"
         )
 
-    # ------------------------------------------------------------------
-    # Evaluation Logic
-    # ------------------------------------------------------------------
+    def _clean_code(self, raw_text: str) -> str:
+        """Extract clean code from Markdown fences or raw text."""
+        text = raw_text.strip()
+        if "```python" in text:
+            m = text.split("```python")[1].split("```")[0]
+            return m.strip()
+        if "```" in text:
+            m = text.split("```")[1].split("```")[0]
+            return m.strip()
+        return text
 
     def evaluate_response(
         self,
@@ -192,12 +270,14 @@ class MBPPSuite(EvaluationSuite):
         generated_text: str,
         sandbox_runner: SandboxedCodeRunner,
     ) -> TaskResult:
-        """Execute generated code followed by task test assertions in sandbox."""
+        """Evaluate a model generation against task test assertions in sandbox."""
         clean_code = self._clean_code(generated_text)
-        test_imports = "\n".join(task.metadata.get("test_imports", []))
+        full_code = f"{clean_code}\n\n{task.test_code}"
 
-        full_code = f"{test_imports}\n\n{clean_code}\n\n{task.test_code}"
-        res = sandbox_runner.execute_in_sandbox(full_code, timeout_sec=task.timeout_seconds)
+        res = sandbox_runner.execute_in_sandbox(
+            full_code,
+            timeout_sec=task.timeout_seconds,
+        )
 
         return TaskResult(
             task_id=task.task_id,
@@ -213,21 +293,6 @@ class MBPPSuite(EvaluationSuite):
             stdout=res.stdout,
         )
 
-    def _clean_code(self, raw_text: str) -> str:
-        """Extract clean code from Markdown fences or raw text."""
-        text = raw_text.strip()
-        if "```python" in text:
-            m = text.split("```python")[1].split("```")[0]
-            return m.strip()
-        if "```" in text:
-            m = text.split("```")[1].split("```")[0]
-            return m.strip()
-        return text
-
-    # ------------------------------------------------------------------
-    # Batch Evaluation
-    # ------------------------------------------------------------------
-
     def evaluate_suite(
         self,
         backend: InferenceBackend | Any,
@@ -235,7 +300,7 @@ class MBPPSuite(EvaluationSuite):
         task_limit: int | None = None,
         sandbox_runner: SandboxedCodeRunner | None = None,
     ) -> EvaluationSuiteResult:
-        """Run full MBPP evaluation with pass@k calculations."""
+        """Run full LiveCodeBench evaluation suite."""
         if tasks is None:
             tasks = self.load_tasks(limit=task_limit)
 
@@ -295,7 +360,7 @@ class MBPPSuite(EvaluationSuite):
             "total_tasks": total_tasks,
         }
 
-        logger.info(f"MBPP results: pass@1={pass_at_1:.2%} ({passed_tasks}/{total_tasks})")
+        logger.info(f"LiveCodeBench results: pass@1={pass_at_1:.2%} ({passed_tasks}/{total_tasks})")
 
         return EvaluationSuiteResult(
             suite_name=self.name,
@@ -311,5 +376,4 @@ class MBPPSuite(EvaluationSuite):
 
 
 # Register in EvaluationRegistry
-EvaluationRegistry.register("mbpp", MBPPSuite)
-EvaluationRegistry.register("mbpp_sanitized", MBPPSuite)
+EvaluationRegistry.register("livecodebench", LiveCodeBenchSuite)

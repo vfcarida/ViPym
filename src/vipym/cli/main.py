@@ -468,6 +468,64 @@ gate_app = typer.Typer(
 app.add_typer(gate_app, name="gate")
 
 
+def _extract_scores_from_path(p: Path) -> dict[str, float] | None:
+    """Attempt to load benchmark evaluation scores from JSON file or experiment directory."""
+    target_json: Path | None = None
+    if p.is_file() and p.suffix == ".json":
+        target_json = p
+    elif p.is_dir():
+        for candidate in [
+            p / "scores.json",
+            p / "results.json",
+            p / "evaluations.json",
+            p / "evaluation_summary.json",
+        ]:
+            if candidate.is_file():
+                target_json = candidate
+                break
+        if target_json is None and (p / "evaluations").is_dir():
+            scores: dict[str, float] = {}
+            for suite_file in (p / "evaluations").glob("*.json"):
+                try:
+                    data = json.loads(suite_file.read_text(encoding="utf-8"))
+                    suite_name = suite_file.stem
+                    if "pass_at_1" in data:
+                        scores[suite_name] = float(data["pass_at_1"])
+                except Exception:
+                    pass
+            if scores:
+                return scores
+
+    if target_json and target_json.is_file():
+        try:
+            data = json.loads(target_json.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                if "scores" in data and isinstance(data["scores"], dict):
+                    return {
+                        k: float(v)
+                        for k, v in data["scores"].items()
+                        if isinstance(v, (int, float))
+                    }
+                return {k: float(v) for k, v in data.items() if isinstance(v, (int, float))}
+            elif isinstance(data, list):
+                extracted: dict[str, float] = {}
+                for item in data:
+                    if isinstance(item, dict):
+                        name = (
+                            item.get("suite_name")
+                            or item.get("configuration_name")
+                            or item.get("name")
+                        )
+                        val = item.get("pass_at_1") or item.get("quality_score")
+                        if name and val is not None:
+                            extracted[str(name)] = float(val)
+                if extracted:
+                    return extracted
+        except Exception:
+            pass
+    return None
+
+
 @gate_app.command("run")
 def gate_run_cmd(
     config_path: Path = typer.Option(
@@ -500,27 +558,48 @@ def gate_run_cmd(
         gate_thresholds = gates_cfg.get_gate(gate_name)
         gate = QualityEvalGate(thresholds=gate_thresholds)
 
-        # Mock evaluation scores for CLI smoke testing or actual inference
-        compressed_scores: dict[str, float] = {
-            "se_composite": 0.88,
-            "humaneval": 0.82,
-            "aider_edit": 0.78,
-            "bigcodebench": 0.62,
-            "swebench": 0.42,
-            "testgeneval": 0.75,
-            "crqbench": 0.58,
-        }
+        # Load real scores from model evaluation artifacts if available, or fall back with notice
+        loaded_compressed = _extract_scores_from_path(model_path)
+        if loaded_compressed:
+            compressed_scores = loaded_compressed
+            console.print(
+                f"[green]Loaded {len(compressed_scores)} metric(s) from target model artifacts.[/green]"
+            )
+        else:
+            console.print(
+                "[dim yellow]Notice: No evaluation score artifacts found at model path; using baseline sample scores for gate evaluation.[/dim yellow]"
+            )
+            compressed_scores = {
+                "se_composite": 0.88,
+                "humaneval": 0.82,
+                "aider_edit": 0.78,
+                "bigcodebench": 0.62,
+                "swebench": 0.42,
+                "testgeneval": 0.75,
+                "crqbench": 0.58,
+            }
+
         teacher_scores: dict[str, float] | None = None
         if teacher_path:
-            teacher_scores = {
-                "se_composite": 0.92,
-                "humaneval": 0.86,
-                "aider_edit": 0.84,
-                "bigcodebench": 0.68,
-                "swebench": 0.48,
-                "testgeneval": 0.80,
-                "crqbench": 0.65,
-            }
+            loaded_teacher = _extract_scores_from_path(teacher_path)
+            if loaded_teacher:
+                teacher_scores = loaded_teacher
+                console.print(
+                    f"[green]Loaded {len(teacher_scores)} metric(s) from teacher baseline artifacts.[/green]"
+                )
+            else:
+                console.print(
+                    "[dim yellow]Notice: No evaluation score artifacts found at teacher path; using baseline sample teacher scores.[/dim yellow]"
+                )
+                teacher_scores = {
+                    "se_composite": 0.92,
+                    "humaneval": 0.86,
+                    "aider_edit": 0.84,
+                    "bigcodebench": 0.68,
+                    "swebench": 0.48,
+                    "testgeneval": 0.80,
+                    "crqbench": 0.65,
+                }
 
         telemetry: dict[str, Any] = {"latency_p95_ms": 1200.0}
 

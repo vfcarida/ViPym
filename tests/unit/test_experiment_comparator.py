@@ -88,3 +88,45 @@ class TestExperimentComparator:
         assert res.exit_code == 0
         assert "ViPym Cross-Experiment Comparison Matrix" in res.stdout
         assert out_html.exists()
+
+    def test_comparator_parses_results_json(self, tmp_path: Path):
+        """Verify comparator loads empirical Pareto metrics directly from results.json."""
+        exp_dir = tmp_path / "exp_with_results"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "manifest.json").write_text(
+            json.dumps({"experiment_id": "exp_results", "model": {"id": "test/model"}}),
+            encoding="utf-8",
+        )
+        results = [
+            {
+                "experiment_id": "exp_results",
+                "configuration_name": "Baseline (FP16)",
+                "quality_score": 0.80,
+                "latency_p50_ms": 40.0,
+                "peak_vram_gb": 16.0,
+                "cost_usd": 1.20,
+                "compression_ratio": 1.0,
+            },
+            {
+                "experiment_id": "exp_results",
+                "configuration_name": "Compressed (AWQ+GPTQ)",
+                "quality_score": 0.78,
+                "latency_p50_ms": 15.0,
+                "peak_vram_gb": 4.5,
+                "cost_usd": 0.35,
+                "compression_ratio": 3.85,
+            },
+        ]
+        (exp_dir / "results.json").write_text(json.dumps(results), encoding="utf-8")
+
+        comp = ExperimentComparator([exp_dir])
+        assert len(comp.summaries) == 1
+        s = comp.summaries[0]
+        assert s.experiment_id == "exp_results"
+        assert s.baseline_pass_at_1 == 0.80
+        assert s.best_compressed_name == "Compressed (AWQ+GPTQ)"
+        assert s.best_compressed_pass_at_1 == 0.78
+        assert s.compression_ratio == 3.85
+        assert s.latency_p50_ms == 15.0
+        assert s.cost_per_1m_tokens == 0.35
+        assert s.quality_retention_pct == pytest.approx(97.5, rel=1e-2)

@@ -13,7 +13,8 @@ from vipym.evaluation.suites.evalplus import (
     MBPPPlusSuite,
 )
 from vipym.evaluation.suites.humaneval import HumanEvalSuite
-from vipym.evaluation.suites.mbpp import LiveCodeBenchSuite, MBPPSuite
+from vipym.evaluation.suites.livecodebench import LiveCodeBenchSuite
+from vipym.evaluation.suites.mbpp import MBPPSuite
 from vipym.evaluation.suites.swebench import (
     SWEBenchFullSuite,
     SWEBenchLiteSuite,

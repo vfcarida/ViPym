@@ -354,6 +354,13 @@ class ResumableExperimentRunner:
                         comp_throughput
                     )
 
+                    orig_size = metadata.model_size_bytes or (metadata.active_parameters * 2)
+                    comp_size = compressed_artifact.compressed_size_bytes
+                    if orig_size > 0 and comp_size > 0:
+                        comp_ratio = round(float(orig_size) / float(comp_size), 2)
+                    else:
+                        comp_ratio = 1.0
+
                     compressed_point = ParetoPoint(
                         experiment_id=self.config.experiment_id,
                         configuration_name=f"Compressed ({'+'.join(compressed_artifact.applied_methods)})",
@@ -361,7 +368,7 @@ class ResumableExperimentRunner:
                         latency_p50_ms=round(comp_p50, 2),
                         peak_vram_gb=round(comp_vram, 2),
                         cost_usd=round(comp_cost, 2),
-                        compression_ratio=4.0,
+                        compression_ratio=comp_ratio,
                     )
                     compressed_points.append(compressed_point)
 

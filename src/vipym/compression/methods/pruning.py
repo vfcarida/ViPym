@@ -48,6 +48,76 @@ def _prune_2_4_block(tensor: torch.Tensor, salience: torch.Tensor) -> torch.Tens
     return pruned
 
 
+def _collect_layer_activation_norms(
+    model: nn.Module,
+    linear_layers: list[tuple[str, nn.Module]],
+    calib_samples: list[Any],
+    tokenizer: Any = None,
+) -> dict[str, torch.Tensor]:
+    """Collect real input activation column norms ||X_j||_2 using PyTorch forward hooks."""
+    act_norms: dict[str, torch.Tensor] = {}
+    if not calib_samples:
+        return act_norms
+
+    sum_sq_map: dict[str, torch.Tensor] = {}
+    hooks = []
+    for name, module in linear_layers:
+
+        def _make_hook(layer_name: str):
+            def _hook(mod: nn.Module, inp: tuple[Any, ...], outp: Any) -> None:
+                if inp and isinstance(inp[0], torch.Tensor):
+                    x = inp[0].detach()
+                    in_feat = x.shape[-1]
+                    x_flat = x.view(-1, in_feat).float()
+                    # Accumulate sum of squares per channel: sum_i X_{ij}^2
+                    sq = torch.sum(x_flat**2, dim=0)
+                    if layer_name not in sum_sq_map:
+                        sum_sq_map[layer_name] = sq
+                    else:
+                        sum_sq_map[layer_name] += sq
+
+            return _hook
+
+        hooks.append(module.register_forward_hook(_make_hook(name)))
+
+    try:
+        device = next(model.parameters()).device
+        was_training = model.training
+        model.eval()
+        with torch.no_grad():
+            for sample in calib_samples[:16]:
+                try:
+                    if isinstance(sample, dict):
+                        inp = {
+                            k: v.to(device) if isinstance(v, torch.Tensor) else v
+                            for k, v in sample.items()
+                        }
+                        model(**inp)
+                    elif isinstance(sample, torch.Tensor):
+                        model(sample.to(device))
+                    elif isinstance(sample, str) and tokenizer is not None and callable(tokenizer):
+                        tokens = tokenizer(
+                            sample, truncation=True, max_length=512, return_tensors="pt"
+                        )
+                        inp = {k: v.to(device) for k, v in tokens.items()}
+                        model(**inp)
+                except Exception:
+                    continue
+        model.train(was_training)
+        for k, sq in sum_sq_map.items():
+            act_norms[k] = torch.sqrt(sq).clamp(min=1e-5)
+    except Exception:
+        pass
+    finally:
+        for h in hooks:
+            try:
+                h.remove()
+            except Exception:
+                pass
+
+    return act_norms
+
+
 class WandaPruningMethod(CompressionMethod):
     """Wanda (Pruning by Weights and Activations) method.
 
@@ -128,42 +198,58 @@ class WandaPruningMethod(CompressionMethod):
             f"Applying Wanda Pruning: sparsity={sparsity}, type={prune_type}, per_expert={per_expert}"
         )
 
+        # Collect linear layers for activation profiling
+        linear_layers = []
+        for name, module in model.named_modules():
+            if (
+                (isinstance(module, nn.Linear) or module.__class__.__name__ == "Conv1D")
+                and not any(k in name.lower() for k in ("lm_head", "embed", "wte", "wpe"))
+                and hasattr(module, "weight")
+                and module.weight is not None
+                and len(module.weight.shape) == 2
+            ):
+                linear_layers.append((name, module))
+
+        calib_samples = kwargs.get("calibration_data") or calibration_data or []
+        act_norms_map = _collect_layer_activation_norms(
+            model=model,
+            linear_layers=linear_layers,
+            calib_samples=calib_samples,
+            tokenizer=tokenizer,
+        )
+
         with torch.no_grad():
-            for name, module in model.named_modules():
-                if (
-                    (isinstance(module, nn.Linear) or module.__class__.__name__ == "Conv1D")
-                    and not any(k in name.lower() for k in ("lm_head", "embed", "wte", "wpe"))
-                    and hasattr(module, "weight")
-                    and module.weight is not None
-                    and len(module.weight.shape) == 2
-                ):
-                    is_conv1d = module.__class__.__name__ == "Conv1D"
-                    w = module.weight.data.t() if is_conv1d else module.weight.data
-                    in_features = w.shape[1]
+            for name, module in linear_layers:
+                is_conv1d = module.__class__.__name__ == "Conv1D"
+                w = module.weight.data.t() if is_conv1d else module.weight.data
+                in_features = w.shape[1]
 
-                    is_expert_layer = (
-                        "expert" in name.lower()
-                        or "moe" in name.lower()
-                        or "block_sparse_moe" in name.lower()
-                    )
-                    target_sp = expert_sp if (per_expert and is_expert_layer) else shared_sp
+                is_expert_layer = (
+                    "expert" in name.lower()
+                    or "moe" in name.lower()
+                    or "block_sparse_moe" in name.lower()
+                )
+                target_sp = expert_sp if (per_expert and is_expert_layer) else shared_sp
 
-                    # Compute activation column norm ||X_j||_2
-                    # Simulate or derive from calibration inputs
-                    act_norm = torch.norm(
-                        torch.randn(128, in_features, device=w.device), dim=0
-                    ).clamp(min=1e-5)
-                    salience = w.abs() * act_norm.unsqueeze(0)
+                # Compute activation column norm ||X_j||_2
+                act_norm = act_norms_map.get(name)
+                if act_norm is None or act_norm.shape[0] != in_features:
+                    # Deterministic fallback: L2 column norm of weights
+                    act_norm = torch.norm(w.float(), p=2, dim=0).clamp(min=1e-5)
+                else:
+                    act_norm = act_norm.to(w.device)
 
-                    if prune_type == "2:4":
-                        pruned_w = _prune_2_4_block(w, salience)
-                    else:
-                        # Unstructured row-wise or global thresholding
-                        thresh = torch.quantile(salience.float(), target_sp)
-                        mask = salience > thresh
-                        pruned_w = w * mask
+                salience = w.abs() * act_norm.unsqueeze(0)
 
-                    module.weight.data.copy_(pruned_w.t() if is_conv1d else pruned_w)
+                if prune_type == "2:4":
+                    pruned_w = _prune_2_4_block(w, salience)
+                else:
+                    # Unstructured row-wise or global thresholding
+                    thresh = torch.quantile(salience.float(), target_sp)
+                    mask = salience > thresh
+                    pruned_w = w * mask
+
+                module.weight.data.copy_(pruned_w.t() if is_conv1d else pruned_w)
 
         # Save model and tokenizer
         if hasattr(model, "save_pretrained"):
@@ -289,39 +375,61 @@ class SparseGPTPruningMethod(CompressionMethod):
             f"Applying SparseGPT Pruning: sparsity={sparsity}, type={prune_type}, damp={damp}"
         )
 
+        # Collect linear layers for activation profiling
+        linear_layers = []
+        for name, module in model.named_modules():
+            if (
+                isinstance(module, nn.Linear)
+                and "lm_head" not in name
+                and hasattr(module, "weight")
+                and module.weight is not None
+                and len(module.weight.shape) == 2
+            ):
+                linear_layers.append((name, module))
+
+        calib_samples = kwargs.get("calibration_data") or calibration_data or []
+        act_norms_map = _collect_layer_activation_norms(
+            model=model,
+            linear_layers=linear_layers,
+            calib_samples=calib_samples,
+            tokenizer=tokenizer,
+        )
+
         with torch.no_grad():
-            for name, module in model.named_modules():
-                if isinstance(module, nn.Linear) and "lm_head" not in name:
-                    w = module.weight.data.clone().float()
-                    in_features = w.shape[1]
+            for name, module in linear_layers:
+                w = module.weight.data.clone().float()
+                in_features = w.shape[1]
 
-                    is_expert_layer = (
-                        "expert" in name.lower()
-                        or "moe" in name.lower()
-                        or "block_sparse_moe" in name.lower()
-                    )
-                    target_sp = expert_sp if (per_expert and is_expert_layer) else shared_sp
+                is_expert_layer = (
+                    "expert" in name.lower()
+                    or "moe" in name.lower()
+                    or "block_sparse_moe" in name.lower()
+                )
+                target_sp = expert_sp if (per_expert and is_expert_layer) else shared_sp
 
-                    # Compute layer-wise inverse Hessian H^-1
-                    h_diag = torch.ones(in_features, device=w.device) + damp
-                    inv_h_diag = 1.0 / h_diag
+                # Compute layer-wise inverse Hessian H^-1
+                act_norm = act_norms_map.get(name)
+                if act_norm is not None and act_norm.shape[0] == in_features:
+                    h_diag = (act_norm**2).to(w.device) + damp
+                else:
+                    h_diag = torch.norm(w.float(), p=2, dim=0) + damp
+                inv_h_diag = 1.0 / h_diag.clamp(min=1e-6)
 
-                    # Salience = w^2 / (2 * [H^-1]_jj)
-                    salience = (w**2) / (2.0 * inv_h_diag.unsqueeze(0))
+                # Salience = w^2 / (2 * [H^-1]_jj)
+                salience = (w**2) / (2.0 * inv_h_diag.unsqueeze(0))
 
-                    if prune_type == "2:4":
-                        w_pruned = _prune_2_4_block(w, salience)
-                    else:
-                        thresh = torch.quantile(salience, target_sp)
-                        mask = salience > thresh
-                        w_pruned = w * mask
+                if prune_type == "2:4":
+                    w_pruned = _prune_2_4_block(w, salience)
+                else:
+                    thresh = torch.quantile(salience, target_sp)
+                    mask = salience > thresh
+                    w_pruned = w * mask
 
-                    # Optimal Brain Surgeon (OBS) weight compensation on unpruned weights
-                    # Compensate remaining weights to preserve activation energy
-                    scale_factor = 1.0 / ((1.0 - target_sp) ** 0.5) if target_sp < 1.0 else 1.0
-                    w_reconstructed = w_pruned * (1.0 + (scale_factor - 1.0) * (1.0 - damp))
+                # Optimal Brain Surgeon (OBS) weight compensation on unpruned weights
+                scale_factor = 1.0 / ((1.0 - target_sp) ** 0.5) if target_sp < 1.0 else 1.0
+                w_reconstructed = w_pruned * (1.0 + (scale_factor - 1.0) * (1.0 - damp))
 
-                    module.weight.data.copy_(w_reconstructed.to(module.weight.dtype))
+                module.weight.data.copy_(w_reconstructed.to(module.weight.dtype))
 
         if hasattr(model, "save_pretrained"):
             model.save_pretrained(out)

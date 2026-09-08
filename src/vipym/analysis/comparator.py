@@ -54,29 +54,63 @@ class ExperimentComparator:
                 exp_id = manifest_data.get("experiment_id", edir.name)
                 model_name = manifest_data.get("model", {}).get("id", "Unknown")
 
-                # Parse evaluations or pareto files
+                results_file = edir / "results.json"
                 eval_file = edir / "evaluations" / "humaneval.json"
-                pass1 = 0.0
-                if eval_file.exists():
-                    eval_data = json.loads(eval_file.read_text(encoding="utf-8"))
-                    pass1 = float(eval_data.get("pass_at_1", 0.0))
 
+                baseline_pass1 = 0.0
+                best_comp_pass1 = 0.0
+                best_comp_name = f"{exp_id}-compressed"
+                retention_pct = 100.0
+                comp_ratio = 1.0
+                latency_p50 = 28.5
                 cost_per_1m = 0.80
+                throughput = 85.0
+
+                if results_file.exists():
+                    results_data = json.loads(results_file.read_text(encoding="utf-8"))
+                    if isinstance(results_data, list) and len(results_data) > 0:
+                        baseline_data = results_data[0]
+                        baseline_pass1 = float(baseline_data.get("quality_score", 0.0))
+
+                        compressed_data = (
+                            results_data[1:] if len(results_data) > 1 else [baseline_data]
+                        )
+                        best_comp = max(
+                            compressed_data,
+                            key=lambda p: float(p.get("quality_score", 0.0)),
+                        )
+
+                        best_comp_name = best_comp.get("configuration_name", f"{exp_id}-top")
+                        best_comp_pass1 = float(best_comp.get("quality_score", baseline_pass1))
+                        retention_pct = (
+                            (best_comp_pass1 / baseline_pass1 * 100.0)
+                            if baseline_pass1 > 0
+                            else 100.0
+                        )
+                        comp_ratio = float(best_comp.get("compression_ratio", 1.0))
+                        latency_p50 = float(best_comp.get("latency_p50_ms", 28.5))
+                        cost_per_1m = float(best_comp.get("cost_usd", 0.80))
+                        throughput = round(1000.0 / latency_p50, 1) if latency_p50 > 0 else 85.0
+                elif eval_file.exists():
+                    eval_data = json.loads(eval_file.read_text(encoding="utf-8"))
+                    baseline_pass1 = float(eval_data.get("pass_at_1", 0.0))
+                    best_comp_pass1 = baseline_pass1
+
                 monthly_cost = 150_000 * cost_per_1m
                 annual_cost = monthly_cost * 12.0
 
                 summary = ExperimentComparisonSummary(
                     experiment_id=exp_id,
                     model_name=model_name,
-                    baseline_pass_at_1=pass1,
-                    best_compressed_name=f"{exp_id}-top",
-                    best_compressed_pass_at_1=pass1,
-                    quality_retention_pct=100.0,
-                    compression_ratio=4.0,
-                    latency_p50_ms=28.5,
-                    throughput_tok_s=85.0,
-                    cost_per_1m_tokens=cost_per_1m,
-                    annual_cost_15k_devs=annual_cost,
+                    baseline_pass_at_1=baseline_pass1,
+                    best_compressed_name=best_comp_name,
+                    best_compressed_pass_at_1=best_comp_pass1,
+                    quality_retention_pct=round(retention_pct, 2),
+                    compression_ratio=round(comp_ratio, 2),
+                    latency_p50_ms=round(latency_p50, 2),
+                    throughput_tok_s=round(throughput, 2),
+                    cost_per_1m_tokens=round(cost_per_1m, 4),
+                    annual_cost_15k_devs=round(annual_cost, 2),
                 )
                 self.summaries.append(summary)
             except Exception as e:

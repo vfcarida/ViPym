@@ -154,6 +154,76 @@ class AWQCompressionMethod(CompressionMethod):
                     synthetic_samples.append(torch.randn(1, seq_length))
             return synthetic_samples
 
+    def _collect_activation_scales(
+        self,
+        model: nn.Module,
+        linear_layers: list[tuple[str, nn.Module]],
+        calib_samples: list[Any],
+        tokenizer: Any = None,
+    ) -> dict[str, torch.Tensor]:
+        """Collect input activation channel magnitudes using PyTorch forward hooks."""
+        act_scales: dict[str, torch.Tensor] = {}
+        if not calib_samples:
+            return act_scales
+
+        hooks = []
+        for name, module in linear_layers:
+
+            def _make_hook(layer_name: str):
+                def _hook(mod: nn.Module, inp: tuple[Any, ...], outp: Any) -> None:
+                    if inp and isinstance(inp[0], torch.Tensor):
+                        x = inp[0].detach()
+                        in_feat = x.shape[-1]
+                        x_flat = x.view(-1, in_feat).abs()
+                        max_x = torch.max(x_flat, dim=0)[0]
+                        if layer_name not in act_scales:
+                            act_scales[layer_name] = max_x
+                        else:
+                            act_scales[layer_name] = torch.maximum(act_scales[layer_name], max_x)
+
+                return _hook
+
+            hooks.append(module.register_forward_hook(_make_hook(name)))
+
+        try:
+            device = next(model.parameters()).device
+            was_training = model.training
+            model.eval()
+            with torch.no_grad():
+                for sample in calib_samples[:16]:
+                    try:
+                        if isinstance(sample, dict):
+                            inp = {
+                                k: v.to(device) if isinstance(v, torch.Tensor) else v
+                                for k, v in sample.items()
+                            }
+                            model(**inp)
+                        elif isinstance(sample, torch.Tensor):
+                            model(sample.to(device))
+                        elif (
+                            isinstance(sample, str)
+                            and tokenizer is not None
+                            and callable(tokenizer)
+                        ):
+                            tokens = tokenizer(
+                                sample, truncation=True, max_length=512, return_tensors="pt"
+                            )
+                            inp = {k: v.to(device) for k, v in tokens.items()}
+                            model(**inp)
+                    except Exception:
+                        continue
+            model.train(was_training)
+        except Exception:
+            pass
+        finally:
+            for h in hooks:
+                try:
+                    h.remove()
+                except Exception:
+                    pass
+
+        return act_scales
+
     def _quantize_tensor_awq(
         self,
         tensor: torch.Tensor,
@@ -300,6 +370,14 @@ class AWQCompressionMethod(CompressionMethod):
                 f"Quantizing {total_layers} linear layers with AWQ activation channel protection..."
             )
 
+            # Collect real activation statistics using forward hooks on calibration samples
+            act_scales_map = self._collect_activation_scales(
+                model=model,
+                linear_layers=linear_layers,
+                calib_samples=calib_samples,
+                tokenizer=tokenizer,
+            )
+
             with torch.no_grad():
                 for idx, (name, module) in enumerate(linear_layers):
                     layer_start = time.perf_counter()
@@ -315,11 +393,16 @@ class AWQCompressionMethod(CompressionMethod):
                     w_tensor = module.weight.data.t() if is_conv1d else module.weight.data
                     in_features = w_tensor.shape[1]
 
-                    # Simulate activation magnitude profile for salient channel detection
-                    act_profile = torch.ones(in_features, device=w_tensor.device)
-                    num_salient = max(1, in_features // 32)
-                    salient_indices = torch.randperm(in_features)[:num_salient]
-                    act_profile[salient_indices] = 8.0  # 8x higher activation magnitude
+                    # Use real calibration activation profile if available, else deterministic topk weight salience
+                    act_profile = act_scales_map.get(name)
+                    if act_profile is None or act_profile.shape[0] != in_features:
+                        s_w = torch.mean(torch.abs(w_tensor.float()), dim=0)
+                        num_salient = max(1, in_features // 32)
+                        _, salient_indices = torch.topk(s_w, k=num_salient)
+                        act_profile = torch.ones(in_features, device=w_tensor.device)
+                        act_profile[salient_indices] = 8.0  # Top salient channels protected
+                    else:
+                        act_profile = act_profile.to(w_tensor.device)
 
                     q_weight, _, _ = self._quantize_tensor_awq(
                         tensor=w_tensor,
