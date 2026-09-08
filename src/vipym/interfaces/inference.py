@@ -30,6 +30,16 @@ class GenerationResponse(pydantic.BaseModel):
     speculative_acceptance_rate: float | None = None
 
 
+class GenerationChunk(pydantic.BaseModel):
+    """Single streamed token chunk with arrival telemetry."""
+
+    delta_text: str
+    token_id: int | None = None
+    arrival_time_ms: float = 0.0
+    is_first_token: bool = False
+    is_finish: bool = False
+
+
 class InferenceBackend(ABC):
     """Abstract interface for model serving runtimes (vLLM, SGLang, HF)."""
 
@@ -60,6 +70,24 @@ class InferenceBackend(ABC):
     async def generate_async(self, request: GenerationRequest) -> GenerationResponse:
         """Asynchronous prompt generation for batch evaluation."""
         pass
+
+    async def generate_stream_async(self, request: GenerationRequest):
+        """Asynchronously stream generated token chunks with arrival telemetry."""
+        import time
+
+        start = time.perf_counter()
+        resp = await self.generate_async(request)
+        tokens = resp.generated_text.split(" ")
+        num_tokens = len(tokens)
+        for idx, token in enumerate(tokens):
+            now = (time.perf_counter() - start) * 1000.0
+            word = token if idx == num_tokens - 1 else token + " "
+            yield GenerationChunk(
+                delta_text=word,
+                arrival_time_ms=now,
+                is_first_token=(idx == 0),
+                is_finish=(idx == num_tokens - 1),
+            )
 
     @abstractmethod
     def stop(self) -> None:

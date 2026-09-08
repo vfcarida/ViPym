@@ -46,6 +46,85 @@ def _get_expert_modules(moe_block: nn.Module) -> list[nn.Module]:
     return experts
 
 
+def _collect_gate_activations(
+    model: nn.Module,
+    moe_blocks: list[tuple[str, nn.Module]],
+    calibration_data: Any | None,
+    tokenizer: Any | None = None,
+    max_samples: int = 128,
+) -> dict[str, torch.Tensor]:
+    """Collect real gate input hidden states via forward hooks over calibration tokens."""
+    if calibration_data is None:
+        return {}
+
+    gate_inputs: dict[str, list[torch.Tensor]] = {}
+    hooks = []
+
+    for layer_name, block in moe_blocks:
+        gate_layer = getattr(block, "gate", getattr(block, "router", None))
+        if gate_layer is not None and isinstance(gate_layer, nn.Linear):
+            gate_inputs[layer_name] = []
+
+            def make_hook(name: str):
+                def hook_fn(_mod: nn.Module, inp: tuple[Any, ...], _out: Any) -> None:
+                    if inp and isinstance(inp[0], torch.Tensor):
+                        x = inp[0].detach()
+                        flat_x = x.view(-1, x.shape[-1])
+                        if flat_x.shape[0] > max_samples:
+                            flat_x = flat_x[:max_samples]
+                        gate_inputs[name].append(flat_x.cpu())
+
+                return hook_fn
+
+            hooks.append(gate_layer.register_forward_hook(make_hook(layer_name)))
+
+    if not hooks:
+        return {}
+
+    model.eval()
+    device = next(model.parameters()).device
+
+    try:
+        with torch.no_grad():
+            samples: list[str] = []
+            if isinstance(calibration_data, list):
+                for item in calibration_data[:16]:
+                    if isinstance(item, str):
+                        samples.append(item)
+                    elif isinstance(item, dict):
+                        samples.append(item.get("text") or item.get("prompt") or "")
+            elif hasattr(calibration_data, "texts"):
+                samples = calibration_data.texts[:16]
+
+            for sample in samples:
+                if tokenizer is not None and sample:
+                    encoded = tokenizer(
+                        sample, return_tensors="pt", truncation=True, max_length=512
+                    )
+                    input_ids = encoded["input_ids"].to(device)
+                    model(input_ids)
+                elif isinstance(calibration_data, torch.Tensor):
+                    model(calibration_data.to(device))
+                    break
+    except Exception as exc:
+        logger.warning(
+            f"Error during MoE calibration forward pass ({exc}); continuing with captured gate activations."
+        )
+    finally:
+        for hook in hooks:
+            hook.remove()
+
+    final_inputs: dict[str, torch.Tensor] = {}
+    for name, tensor_list in gate_inputs.items():
+        if tensor_list:
+            cat_t = torch.cat(tensor_list, dim=0)
+            if cat_t.shape[0] > max_samples:
+                cat_t = cat_t[:max_samples]
+            final_inputs[name] = cat_t
+
+    return final_inputs
+
+
 class ExpertProfiler(CompressionMethod):
     """Profiles token routing traffic, weight norms, and activation magnitudes across MoE experts."""
 
@@ -89,6 +168,7 @@ class ExpertProfiler(CompressionMethod):
         self,
         model: nn.Module,
         calibration_data: Any | None = None,
+        tokenizer: Any | None = None,
     ) -> dict[str, Any]:
         """Collect per-layer and per-expert utilization and importance statistics."""
         start_time = time.perf_counter()
@@ -100,8 +180,14 @@ class ExpertProfiler(CompressionMethod):
             "timestamp": time.time(),
         }
 
-        # Calibration hidden states for routing frequency
-        test_inputs = torch.randn(min(self.n_samples, 128), 4, 64)
+        # Collect empirical gate activations via forward hooks on calibration data
+        gate_inputs_map = _collect_gate_activations(
+            model=model,
+            moe_blocks=moe_blocks,
+            calibration_data=calibration_data,
+            tokenizer=tokenizer,
+            max_samples=self.n_samples,
+        )
 
         with torch.no_grad():
             for layer_name, block in moe_blocks:
@@ -118,25 +204,41 @@ class ExpertProfiler(CompressionMethod):
                     ).item()
                     magnitudes.append(float(l2))
 
-                # 2. Router frequency on calibration data
-                frequencies = [1.0 / num_experts] * num_experts
+                # 2. Router frequency and co-activation matrix
                 gate_layer = getattr(block, "gate", getattr(block, "router", None))
-                if gate_layer is not None and isinstance(gate_layer, nn.Linear):
-                    try:
-                        in_dim = gate_layer.in_features
-                        calib_x = torch.randn(128, in_dim, device=gate_layer.weight.device)
-                        logits = gate_layer(calib_x)
-                        top_experts = torch.argmax(logits, dim=-1)
-                        counts = torch.bincount(top_experts, minlength=num_experts).float()
-                        frequencies = (counts / counts.sum()).tolist()
-                    except Exception:
-                        pass
+                co_activation_mat = torch.eye(num_experts)
+
+                if (
+                    layer_name in gate_inputs_map
+                    and gate_layer is not None
+                    and isinstance(gate_layer, nn.Linear)
+                ):
+                    calib_x = gate_inputs_map[layer_name].to(gate_layer.weight.device)
+                    logits = gate_layer(calib_x.float())
+                    k = min(2, num_experts)
+                    top_k_indices = torch.topk(logits, k=k, dim=-1).indices
+
+                    all_selected = top_k_indices.view(-1)
+                    counts = torch.bincount(all_selected, minlength=num_experts).float()
+                    frequencies = (counts / max(counts.sum().item(), 1.0)).tolist()
+
+                    co_act = torch.zeros(num_experts, num_experts, device=logits.device)
+                    for row in top_k_indices:
+                        for e1 in row:
+                            for e2 in row:
+                                co_act[e1, e2] += 1.0
+
+                    diag = torch.diag(co_act)
+                    norm_denom = torch.sqrt(torch.outer(diag, diag)).clamp(min=1.0)
+                    co_activation_mat = (co_act / norm_denom).cpu()
+                else:
+                    frequencies = [1.0 / num_experts] * num_experts
+                    co_activation_mat = torch.eye(num_experts)
 
                 # 3. Activation magnitude
                 activations = [float(f * m) for f, m in zip(frequencies, magnitudes, strict=True)]
 
                 # 4. Combined importance score
-                # Normalize metrics
                 max_f = max(max(frequencies), 1e-6)
                 max_m = max(max(magnitudes), 1e-6)
                 max_a = max(max(activations), 1e-6)
@@ -165,6 +267,7 @@ class ExpertProfiler(CompressionMethod):
                     "importance_ranking": sorted(
                         range(num_experts), key=lambda i: importance_scores[i], reverse=True
                     ),
+                    "co_activation_matrix": co_activation_mat.tolist(),
                 }
 
         stats["profiling_duration_sec"] = time.perf_counter() - start_time
@@ -182,7 +285,11 @@ class ExpertProfiler(CompressionMethod):
         out.mkdir(parents=True, exist_ok=True)
 
         logger.info("Executing MoE Expert Profiler stage...")
-        stats = self.profile_model(model=model, calibration_data=calibration_data)
+        stats = self.profile_model(
+            model=model,
+            calibration_data=calibration_data,
+            tokenizer=tokenizer,
+        )
 
         stats_path = out / self.output_filename
         with open(stats_path, "w", encoding="utf-8") as f:

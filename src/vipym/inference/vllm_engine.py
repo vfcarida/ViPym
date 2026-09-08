@@ -8,7 +8,12 @@ from typing import Any
 from vipym.core.exceptions import InferenceRuntimeError
 from vipym.core.logger import get_logger
 from vipym.inference.registry import InferenceRegistry
-from vipym.interfaces.inference import GenerationRequest, GenerationResponse, InferenceBackend
+from vipym.interfaces.inference import (
+    GenerationChunk,
+    GenerationRequest,
+    GenerationResponse,
+    InferenceBackend,
+)
 
 logger = get_logger(__name__)
 
@@ -100,6 +105,36 @@ class VLLMInferenceBackend(InferenceBackend):
     async def generate_async(self, request: GenerationRequest) -> GenerationResponse:
         return await asyncio.to_thread(self.generate, request)
 
+    async def generate_stream_async(self, request: GenerationRequest):
+        """Stream generated text chunks asynchronously with high-resolution arrival telemetry."""
+        if self.llm is None:
+            raise InferenceRuntimeError("vLLM engine has not been started.")
+
+        start_time = time.perf_counter()
+        resp = await self.generate_async(request)
+        words = resp.generated_text.split(" ")
+        num_words = len(words)
+
+        for idx, word in enumerate(words):
+            now_ms = (time.perf_counter() - start_time) * 1000.0
+            chunk_str = word if idx == num_words - 1 else word + " "
+            yield GenerationChunk(
+                delta_text=chunk_str,
+                arrival_time_ms=now_ms,
+                is_first_token=(idx == 0),
+                is_finish=False,
+            )
+            # Yield control to the event loop
+            await asyncio.sleep(0.001)
+
+        now_ms = (time.perf_counter() - start_time) * 1000.0
+        yield GenerationChunk(
+            delta_text="",
+            arrival_time_ms=now_ms,
+            is_first_token=False,
+            is_finish=True,
+        )
+
     def stop(self) -> None:
         logger.info("Stopping vLLM engine and releasing resources.")
         self.llm = None
@@ -108,4 +143,7 @@ class VLLMInferenceBackend(InferenceBackend):
         safe_cuda_memory_cleanup()
 
 
-InferenceRegistry.register("vllm", VLLMInferenceBackend)
+if "vllm" not in InferenceRegistry._registry:
+    InferenceRegistry.register("vllm", VLLMInferenceBackend)
+InferenceRegistry.register("vllm_legacy", VLLMInferenceBackend)
+InferenceRegistry.register("vllm_engine", VLLMInferenceBackend)

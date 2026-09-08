@@ -7,6 +7,7 @@ evaluation benchmark suites (HumanEval, MBPP, etc.) prior to model calibration.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 from pathlib import Path
@@ -73,6 +74,66 @@ class MetricRecord:
 ]
 
 
+class ASTCodeChunker:
+    """Extracts syntactically valid code units (functions, classes, blocks) for calibration."""
+
+    @staticmethod
+    def extract_python_units(code: str) -> list[str]:
+        """Extract top-level functions, classes, and cohesive statements from Python code."""
+        try:
+            tree = ast.parse(code)
+        except (SyntaxError, ValueError):
+            return ASTCodeChunker.extract_indented_blocks(code)
+
+        lines = code.splitlines(keepends=True)
+        units: list[str] = []
+
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                start = node.lineno - 1
+                end = getattr(node, "end_lineno", start + 1)
+                unit_str = "".join(lines[start:end]).strip()
+                if unit_str:
+                    units.append(unit_str)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr)):
+                start = node.lineno - 1
+                end = getattr(node, "end_lineno", start + 1)
+                unit_str = "".join(lines[start:end]).strip()
+                if len(unit_str) > 20:
+                    units.append(unit_str)
+
+        if not units:
+            return [code.strip()] if code.strip() else []
+        return units
+
+    @staticmethod
+    def extract_indented_blocks(code: str) -> list[str]:
+        """Heuristic block chunker for non-Python or unparseable source files."""
+        blocks: list[str] = []
+        current_block: list[str] = []
+
+        for line in code.splitlines():
+            if (
+                current_block
+                and not line.startswith((" ", "\t"))
+                and line.strip()
+                and not line.strip().startswith(("#", "//"))
+            ):
+                block_text = "\n".join(current_block).strip()
+                if len(block_text) > 20:
+                    blocks.append(block_text)
+                current_block = [line]
+            else:
+                current_block.append(line)
+
+        if current_block:
+            block_text = "\n".join(current_block).strip()
+            if block_text:
+                blocks.append(block_text)
+
+        return blocks if blocks else ([code.strip()] if code.strip() else [])
+
+
 class CalibrationConfig(BaseModel):
     """Configuration for calibration data ingestion and preprocessing."""
 
@@ -91,6 +152,10 @@ class CalibrationConfig(BaseModel):
     eval_suites_to_check: list[str] = Field(
         default_factory=lambda: ["humaneval", "mbpp"],
         description="Benchmark suites to audit and purge from calibration corpus",
+    )
+    ast_aware: bool = Field(
+        default=False,
+        description="Preserve syntactic function/class boundaries during tokenization and chunking",
     )
 
 
@@ -202,14 +267,80 @@ class CalibrationDatasetManager:
         clean = self.purge_contamination(raw)
         return clean[: self.config.num_samples]
 
-    def tokenize_and_chunk(
+    def tokenize_and_chunk_ast_aware(
         self,
         corpus: list[str],
         tokenizer: Any,
         sequence_length: int | None = None,
         max_samples: int | None = None,
     ) -> list[Any]:
+        """Chunk code preserving syntactic AST boundaries and packing up to sequence_length."""
+        seq_len = sequence_length or self.config.sequence_length
+        limit = max_samples or self.config.num_samples
+        eos_id = getattr(tokenizer, "eos_token_id", None)
+        if eos_id is None:
+            eos_id = 0
+
+        # Extract all discrete AST units
+        code_units: list[str] = []
+        for doc in corpus:
+            units = ASTCodeChunker.extract_python_units(doc)
+            code_units.extend(units)
+
+        chunks: list[list[int]] = []
+        current_chunk: list[int] = []
+
+        for unit in code_units:
+            tokens_res = tokenizer(unit, truncation=False, return_tensors=None)
+            tokens = tokens_res.get("input_ids", []) if isinstance(tokens_res, dict) else []
+            if not tokens:
+                continue
+
+            # If unit alone exceeds sequence length, slice it
+            if len(tokens) >= seq_len:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                    current_chunk = []
+                chunks.append(tokens[:seq_len])
+                if len(chunks) >= limit:
+                    break
+                continue
+
+            # Pack unit with delimiter if it fits
+            if len(current_chunk) + len(tokens) + 1 <= seq_len:
+                if current_chunk:
+                    current_chunk.append(eos_id)
+                current_chunk.extend(tokens)
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                    if len(chunks) >= limit:
+                        break
+                current_chunk = list(tokens)
+
+        if current_chunk and len(chunks) < limit:
+            chunks.append(current_chunk)
+
+        return chunks
+
+    def tokenize_and_chunk(
+        self,
+        corpus: list[str],
+        tokenizer: Any,
+        sequence_length: int | None = None,
+        max_samples: int | None = None,
+        ast_aware: bool | None = None,
+    ) -> list[Any]:
         """Tokenize code samples and chunk into uniform sequence lengths for quantization."""
+        use_ast = self.config.ast_aware if ast_aware is None else ast_aware
+        if use_ast:
+            return self.tokenize_and_chunk_ast_aware(
+                corpus=corpus,
+                tokenizer=tokenizer,
+                sequence_length=sequence_length,
+                max_samples=max_samples,
+            )
+
         seq_len = sequence_length or self.config.sequence_length
         limit = max_samples or self.config.num_samples
 

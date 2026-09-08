@@ -62,3 +62,59 @@ class TestCalibrationDatasetManager:
         chunks = mgr.tokenize_and_chunk(corpus, MockTokenizer(), sequence_length=16, max_samples=4)
         assert len(chunks) == 4
         assert len(chunks[0]) == 16
+
+    def test_ast_code_chunker_python_units(self):
+        """Verify ASTCodeChunker extracts syntactically complete functions and classes."""
+        from vipym.data.calibration import ASTCodeChunker
+
+        code = """import sys
+
+def compute_sum(a: int, b: int) -> int:
+    return a + b
+
+class MatrixProcessor:
+    def __init__(self, size: int) -> None:
+        self.size = size
+
+async def fetch_data(url: str) -> str:
+    return "ok"
+"""
+        units = ASTCodeChunker.extract_python_units(code)
+        assert len(units) >= 3
+        assert any("def compute_sum" in u for u in units)
+        assert any("class MatrixProcessor" in u for u in units)
+        assert any("async def fetch_data" in u for u in units)
+
+    def test_ast_code_chunker_fallback_on_syntax_error(self):
+        """Verify ASTCodeChunker gracefully falls back to indented blocks on syntax errors."""
+        from vipym.data.calibration import ASTCodeChunker
+
+        broken_code = """func main() {
+    println("Hello Go")
+}
+
+func helper() {
+    return 1
+}
+"""
+        units = ASTCodeChunker.extract_python_units(broken_code)
+        assert len(units) >= 1
+        assert any("func " in u for u in units)
+
+    def test_tokenize_and_chunk_ast_aware(self):
+        """Verify AST-aware chunking preserves unit boundaries and inserts delimiter tokens."""
+        mgr = CalibrationDatasetManager(CalibrationConfig(ast_aware=True, sequence_length=64))
+
+        class MockTokenizer:
+            eos_token_id = 999
+
+            def __call__(self, text: str, **kwargs):
+                return {"input_ids": [10, 20, 30]}
+
+        corpus = [
+            "def fn1(): pass\ndef fn2(): pass\ndef fn3(): pass",
+        ]
+        chunks = mgr.tokenize_and_chunk(corpus, MockTokenizer(), sequence_length=64, max_samples=2)
+        assert len(chunks) >= 1
+        # Should contain delimiter eos_token_id 999 between packed functions
+        assert 999 in chunks[0]

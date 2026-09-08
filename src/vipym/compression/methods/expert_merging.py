@@ -8,7 +8,11 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from vipym.compression.methods.expert_profiler import _find_moe_blocks, _get_expert_modules
+from vipym.compression.methods.expert_profiler import (
+    _collect_gate_activations,
+    _find_moe_blocks,
+    _get_expert_modules,
+)
 from vipym.compression.moe.router_utils import retrain_router
 from vipym.compression.moe.similarity import (
     cluster_experts_by_similarity,
@@ -97,6 +101,13 @@ class ExpertMergingMethod(CompressionMethod):
         )
 
         layer_merge_reports: dict[str, Any] = {}
+        gate_inputs_map = _collect_gate_activations(
+            model=model,
+            moe_blocks=moe_blocks,
+            calibration_data=calibration_data,
+            tokenizer=tokenizer,
+            max_samples=128,
+        )
 
         for layer_name, block in moe_blocks:
             experts = _get_expert_modules(block)
@@ -182,7 +193,16 @@ class ExpertMergingMethod(CompressionMethod):
                         gate_layer.bias = nn.Parameter(new_bias)
 
                 if retrain:
-                    calib_tokens = torch.randn(128, gate_layer.in_features)
+                    calib_tokens = gate_inputs_map.get(layer_name)
+                    if calib_tokens is None:
+                        calib_tokens = (
+                            torch.linspace(-1.0, 1.0, 128, device=gate_layer.weight.device)
+                            .unsqueeze(1)
+                            .repeat(1, gate_layer.in_features)
+                        )
+                    else:
+                        calib_tokens = calib_tokens.to(gate_layer.weight.device)
+
                     retrain_router(
                         router_layer=gate_layer,
                         calibration_hidden_states=calib_tokens,

@@ -151,7 +151,7 @@ class AWQCompressionMethod(CompressionMethod):
                         f"def sample_code_function_{i}(x, y):\n    '''Calibration sample {i} for AWQ compression.'''\n    return x * y + {i}\n"
                     )
                 else:
-                    synthetic_samples.append(torch.randn(1, seq_length))
+                    synthetic_samples.append(torch.randint(10, 1000, (1, seq_length)))
             return synthetic_samples
 
     def _collect_activation_scales(

@@ -354,7 +354,9 @@ class ResumableExperimentRunner:
                         comp_throughput
                     )
 
-                    orig_size = metadata.model_size_bytes or (metadata.active_parameters * 2)
+                    orig_size = getattr(metadata, "model_size_bytes", None) or (
+                        (metadata.total_parameters or metadata.active_parameters) * 2
+                    )
                     comp_size = compressed_artifact.compressed_size_bytes
                     if orig_size > 0 and comp_size > 0:
                         comp_ratio = round(float(orig_size) / float(comp_size), 2)

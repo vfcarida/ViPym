@@ -248,7 +248,7 @@ class TestMBPPSuite:
         suite = LiveCodeBenchSuite()
         assert suite.name == "livecodebench"
         tasks = suite.load_tasks(limit=1)
-        res = suite.evaluate_response(tasks[0], "def solve(): pass", sandbox_runner)
+        res = suite.evaluate_response(tasks[0], tasks[0].canonical_solution, sandbox_runner)
         assert res.passed is True
 
 

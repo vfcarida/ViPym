@@ -41,6 +41,7 @@ class ModelMetadata(pydantic.BaseModel):
     num_key_value_heads: int | None = None
     num_experts: int | None = None
     num_selected_experts: int | None = None
+    model_size_bytes: int | None = None
     has_custom_kernels: bool = False
     raw_config: dict[str, Any] = field(default_factory=dict)
 

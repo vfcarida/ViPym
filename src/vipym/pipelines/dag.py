@@ -15,10 +15,12 @@ logger = get_logger(__name__)
 
 
 class DirectedAcyclicCompressionPipeline(CompressionPipeline):
-    """Topological execution engine for arbitrary non-linear compression pipelines."""
+    """Topological execution engine for arbitrary non-linear and branching compression pipelines."""
 
     def __init__(self) -> None:
         self.nodes: dict[str, PipelineStageNode] = {}
+        self.stage_artifacts: dict[str, CompressionArtifact] = {}
+        self.leaf_artifacts: dict[str, CompressionArtifact] = {}
 
     def add_stage(
         self,
@@ -80,6 +82,10 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
             node.method.validate_applicability(initial_metadata)
         return True
 
+    def get_branch_artifacts(self) -> dict[str, CompressionArtifact]:
+        """Return output artifacts of all terminal leaf stages in the DAG."""
+        return dict(self.leaf_artifacts)
+
     def execute(
         self,
         model_adapter: ModelAdapter,
@@ -87,24 +93,34 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
         output_dir: Path,
         revision: str = "main",
     ) -> CompressionArtifact:
-        """Execute all nodes in topological order."""
+        """Execute all nodes in topological order with branch isolation and artifact reloading."""
+        import copy
+
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         order = self.get_topological_order()
 
         logger.info(f"Executing Compression DAG with {len(order)} stages: {' -> '.join(order)}")
 
-        model = model_adapter.load_for_compression(model_id, revision=revision)
-        tokenizer = model_adapter.get_tokenizer(model_id, revision=revision)
+        # Determine out-degree of each stage to identify terminal leaf nodes
+        dependents_count: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        for node in self.nodes.values():
+            for dep in node.dependencies:
+                dependents_count[dep] += 1
+        leaf_stage_ids = {nid for nid, cnt in dependents_count.items() if cnt == 0}
 
-        current_artifact: CompressionArtifact | None = None
-        applied_methods: list[str] = []
+        self.stage_artifacts.clear()
+        self.leaf_artifacts.clear()
+        stage_models: dict[str, Any] = {}
 
         tracker = PipelineProgressTracker(
             total_stages=len(order),
             pipeline_name="compression_dag",
             pipeline_id=f"dag_{model_id}",
         )
+
+        current_artifact: CompressionArtifact | None = None
+        applied_methods: list[str] = []
 
         for idx, stage_id in enumerate(order):
             node = self.nodes[stage_id]
@@ -116,10 +132,45 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
             stage_out_dir = output_dir / f"stage_{idx}_{stage_id}"
             stage_out_dir.mkdir(parents=True, exist_ok=True)
 
+            # Load model corresponding to parent dependency (or base model if root)
+            if not node.dependencies:
+                stage_model = model_adapter.load_for_compression(model_id, revision=revision)
+                stage_tokenizer = model_adapter.get_tokenizer(model_id, revision=revision)
+            else:
+                parent_id = node.dependencies[0]
+                parent_artifact = self.stage_artifacts[parent_id]
+                parent_path = str(parent_artifact.output_path)
+
+                stage_model = None
+                try:
+                    stage_model = model_adapter.load_for_compression(parent_path, revision=revision)
+                except Exception as load_err:
+                    logger.debug(
+                        f"Adapter could not load from artifact path '{parent_path}' ({load_err}); falling back to parent clone."
+                    )
+
+                if stage_model is None:
+                    if parent_id in stage_models:
+                        try:
+                            stage_model = copy.deepcopy(stage_models[parent_id])
+                        except Exception:
+                            stage_model = model_adapter.load_for_compression(
+                                model_id, revision=revision
+                            )
+                    else:
+                        stage_model = model_adapter.load_for_compression(
+                            model_id, revision=revision
+                        )
+
+                try:
+                    stage_tokenizer = model_adapter.get_tokenizer(parent_path, revision=revision)
+                except Exception:
+                    stage_tokenizer = model_adapter.get_tokenizer(model_id, revision=revision)
+
             try:
                 current_artifact = node.method.compress(
-                    model=model,
-                    tokenizer=tokenizer,
+                    model=stage_model,
+                    tokenizer=stage_tokenizer,
                     output_dir=stage_out_dir,
                     **node.parameters,
                 )
@@ -130,7 +181,13 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
                 )
                 node.execution_time_sec = duration
                 node.output_artifact = current_artifact
+                self.stage_artifacts[stage_id] = current_artifact
+                stage_models[stage_id] = stage_model
                 applied_methods.append(node.method.name)
+
+                if stage_id in leaf_stage_ids:
+                    self.leaf_artifacts[stage_id] = current_artifact
+
                 from vipym.utils.resilience import safe_cuda_memory_cleanup
 
                 safe_cuda_memory_cleanup()
@@ -142,10 +199,12 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
         if current_artifact is None:
             baseline_dir = output_dir / "uncompressed_baseline"
             baseline_dir.mkdir(parents=True, exist_ok=True)
-            if hasattr(model, "save_pretrained"):
-                model.save_pretrained(baseline_dir)
-            if hasattr(tokenizer, "save_pretrained"):
-                tokenizer.save_pretrained(baseline_dir)
+            base_m = model_adapter.load_for_compression(model_id, revision=revision)
+            base_t = model_adapter.get_tokenizer(model_id, revision=revision)
+            if hasattr(base_m, "save_pretrained"):
+                base_m.save_pretrained(baseline_dir)
+            if hasattr(base_t, "save_pretrained"):
+                base_t.save_pretrained(baseline_dir)
             current_artifact = CompressionArtifact(
                 output_path=baseline_dir,
                 format="safetensors",
@@ -153,6 +212,11 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
                 applied_methods=["baseline"],
             )
 
+        # Attach branch metadata to primary artifact
+        if self.leaf_artifacts:
+            current_artifact.metadata["branches"] = {
+                k: str(v.output_path) for k, v in self.leaf_artifacts.items()
+            }
         current_artifact.applied_methods = applied_methods
         return current_artifact
 
