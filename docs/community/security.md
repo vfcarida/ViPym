@@ -38,7 +38,7 @@ If GitHub Advisories are unavailable, email **`vfcarida@gmail.com`** with:
 
 ## 3. Sandboxing & Threat Model
 
-ViPym's primary defense-in-depth barrier is the sandboxed code execution engine ([`docker_sandbox.py`](src/vipym/evaluation/sandbox/docker_sandbox.py)):
+ViPym's primary defense-in-depth barrier is the sandboxed code execution engine ([`docker_sandbox.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/evaluation/sandbox/docker_sandbox.py)):
 
 1. **Mandatory Double Opt-in:** Degraded execution (bare subprocess) is strictly forbidden unless **both** `allow_unsafe_execution: true` is configured in the recipe AND the environment variable `VIPYM_ALLOW_UNSAFE=1` is explicitly exported.
 2. **Container Isolation:** Untrusted benchmark code must run inside Docker or gVisor (`runsc`) containers with:

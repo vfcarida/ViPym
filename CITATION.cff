@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use ViPym in your research or engineering workflows, please cite it as below."
+title: "ViPym: Shrinking LLMs, Preserving Intelligence"
+abstract: "An open-source reference framework for multi-stage LLM compression DAGs, zero-trust software engineering benchmark validation, and multi-objective Pareto cost/quality optimization."
+authors:
+  - family-names: "Caridá"
+    given-names: "Vinicius"
+    email: "vfcarida@gmail.com"
+version: 0.2.0
+date-released: 2026-09-11
+license: MIT
+repository-code: "https://github.com/vfcarida/ViPym"
+url: "https://github.com/vfcarida/ViPym"
+keywords:
+  - "llm-compression"
+  - "quantization"
+  - "pruning"
+  - "mixture-of-experts"
+  - "software-engineering"
+  - "benchmarks"
+  - "pareto-optimization"

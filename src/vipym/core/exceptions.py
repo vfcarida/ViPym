@@ -71,3 +71,15 @@ class BaselineMismatchError(ViPymError):
     """Raised when an experiment attempts to compare against an invalid or mismatched baseline."""
 
     pass
+
+
+class ContaminationError(BenchmarkEvaluationError):
+    """Raised when high contamination is detected between training data and evaluation suite."""
+
+    pass
+
+
+class StateTransitionError(ViPymError):
+    """Raised when an illegal state transition occurs in the experiment lifecycle."""
+
+    pass

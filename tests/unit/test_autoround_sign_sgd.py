@@ -105,3 +105,12 @@ def test_autoround_compress_pipeline_execution():
         meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
         assert meta_data["layers_optimized"] == 2
         assert "mean_loss_reduction" in meta_data
+
+        config_file = out_dir / "config.json"
+        assert config_file.exists()
+        cfg_data = json.loads(config_file.read_text(encoding="utf-8"))
+        assert "quantization_config" in cfg_data
+        assert cfg_data["quantization_config"]["quant_method"] == "compressed-tensors"
+        assert (
+            cfg_data["quantization_config"]["config_groups"]["group_0"]["weights"]["num_bits"] == 4
+        )

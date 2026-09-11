@@ -50,9 +50,9 @@ ViPym is architected around **strict decoupled symmetry**: compression stages op
 ## 1. Core Subsystems
 
 ### 1. Control Plane & FSM State Machine
-- **Pydantic v2 Configuration Engine** ([src/vipym/config/schema.py](../src/vipym/config/schema.py)): Validates recipe files and parameter bounds before compute allocation.
-- **12-State Resumable FSM** ([src/vipym/experiments/state.py](../src/vipym/experiments/state.py)): Checkpoints progress at every major milestone (`VALIDATED`, `BASELINE_COMPLETED`, `COMPRESSION_COMPLETED`, `EVALUATION_COMPLETED`, `ANALYSIS_COMPLETED`, `REPORT_COMPLETED`), allowing multi-hour experiments to resume seamlessly after interruptions.
-- **DAG Pipeline Planner** ([src/vipym/pipelines/dag.py](../src/vipym/pipelines/dag.py)): Resolves stage dependencies using Kahn's topological sort with cycle detection. Supports branching and multi-parent fusion stages (e.g. cross-branch model merging and expert fusion), passing upstream parent artifacts and models as structured mappings.
+- **Pydantic v2 Configuration Engine** ([`src/vipym/config/schema.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/config/schema.py)): Validates recipe files and parameter bounds before compute allocation.
+- **12-State Resumable FSM** ([`src/vipym/experiments/state.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/experiments/state.py)): Checkpoints progress at every major milestone (`VALIDATED`, `BASELINE_COMPLETED`, `COMPRESSION_COMPLETED`, `EVALUATION_COMPLETED`, `ANALYSIS_COMPLETED`, `REPORT_COMPLETED`), allowing multi-hour experiments to resume seamlessly after interruptions.
+- **DAG Pipeline Planner** ([`src/vipym/pipelines/dag.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/pipelines/dag.py)): Resolves stage dependencies using Kahn's topological sort with cycle detection. Supports branching and multi-parent fusion stages (e.g. cross-branch model merging and expert fusion), passing upstream parent artifacts and models as structured mappings.
 
 ### 2. Compression Engine
 - **Transforms**: Outlier-suppression rotations (`quarot`, `spinquant`).
@@ -63,22 +63,22 @@ ViPym is architected around **strict decoupled symmetry**: compression stages op
 - **Distillation**: Cross-architecture student-teacher training.
 
 ### 3. Sandboxed Evaluation Runner
-- **gVisor / Docker Isolation** ([src/vipym/evaluation/sandbox/docker_sandbox.py](../src/vipym/evaluation/sandbox/docker_sandbox.py)): Executes untrusted generated code in isolated containers with total network lockdown (`--network=none`), memory caps, and process timeouts.
+- **gVisor / Docker Isolation** ([`src/vipym/evaluation/sandbox/docker_sandbox.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/evaluation/sandbox/docker_sandbox.py)): Executes untrusted generated code in isolated containers with total network lockdown (`--network=none`), memory caps, and process timeouts.
 - **Inference Engines**: Integration with `vllm`, `sglang`, and `hf` engines for realistic throughput and latency measurements.
 - **Hermetic Benchmark Isolation**: Native offline mock mode (`VIPYM_OFFLINE=1`) ensuring deterministic test execution without external Hugging Face dataset network requests.
 
 ### 4. Analysis, Pareto Optimization & Reporting
-- **Pareto Frontier Optimizer** ([src/vipym/analysis/pareto.py](../src/vipym/analysis/pareto.py)): Multi-objective non-dominated sorting over `(Quality, VRAM, Latency, $/1M tokens)`.
-- **Deployment Recommender** ([src/vipym/analysis/recommender.py](../src/vipym/analysis/recommender.py)): Synthesizes ranked deployment strategies and ROI projections.
-- **Unified Generator** ([src/vipym/reporting/generator.py](../src/vipym/reporting/generator.py)): Produces Plotly interactive 3D/2D visualizers, standalone HTML dashboards, LaTeX publication tables, and Markdown executive summaries.
+- **Pareto Frontier Optimizer** ([`src/vipym/analysis/pareto.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/analysis/pareto.py)): Multi-objective non-dominated sorting over `(Quality, VRAM, Latency, $/1M tokens)`.
+- **Deployment Recommender** ([`src/vipym/analysis/recommender.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/analysis/recommender.py)): Synthesizes ranked deployment strategies and ROI projections.
+- **Unified Generator** ([`src/vipym/reporting/generator.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/reporting/generator.py)): Produces Plotly interactive 3D/2D visualizers, standalone HTML dashboards, LaTeX publication tables, and Markdown executive summaries.
 
 ### 5. Multi-Experiment Grid Sweep Engine
-- **Hyperparameter Exploration** ([src/vipym/experiments/sweep.py](../src/vipym/experiments/sweep.py)): Executes multi-dimensional parameter grids across compression bit-widths, pruning ratios, and calibration sets using Cartesian expansion.
+- **Hyperparameter Exploration** ([`src/vipym/experiments/sweep.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/experiments/sweep.py)): Executes multi-dimensional parameter grids across compression bit-widths, pruning ratios, and calibration sets using Cartesian expansion.
 - **Resumable State Checkpoints**: Persists evaluation progress in `state.json` with individual point results stored in `points/`, allowing preempted or interrupted sweeps to safely resume.
 - **Automated Pareto Discovery**: Automatically filters dominated parameter combinations and exports the global non-dominated frontier to `pareto_frontier.json` and a Rich terminal summary table.
 
 ### 6. ViPym Studio (ASGI Web Architecture)
-- **High-Concurrency ASGI Backend** ([src/vipym/studio/server.py](../src/vipym/studio/server.py), [src/vipym/studio/app.py](../src/vipym/studio/app.py)): Built on FastAPI and Uvicorn with asynchronous non-blocking request handling.
+- **High-Concurrency ASGI Backend** ([`src/vipym/studio/server.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/studio/server.py), [`src/vipym/studio/app.py`](https://github.com/vfcarida/ViPym/blob/main/src/vipym/studio/app.py)): Built on FastAPI and Uvicorn with asynchronous non-blocking request handling.
 - **Live Model Playground**: Interactive token generation interface with Server-Sent Events (SSE) streaming for real-time typewriter output, TTFT, and throughput metrics.
 - **Real-Time Observability**: Authenticated WebSocket (`/ws/progress`) pushing layer-by-layer compression metrics and memory consumption.
 - **Security Controls**: Bearer token authentication (`VIPYM_API_TOKEN`), rate limiting (100 req/min), audit logging, and read-only mode (`--read-only`).

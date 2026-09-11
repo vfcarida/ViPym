@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vipym"
-version = "0.1.0"
+version = "0.2.0"
 description = "ViPym: Shrinking LLMs, Preserving Intelligence — Modular, reproducible LLM compression benchmarking and evaluation framework"
 readme = "README.md"
 authors = [{ name = "ViPym Contributors" }]
@@ -121,3 +121,9 @@ markers = [
     "integration: Integration tests requiring PyTorch or Docker",
     "slow: Tests that take > 10 seconds",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:importlib.*",
+    "ignore:builtin type Swig.*:DeprecationWarning",
+    "ignore:builtin type swig.*:DeprecationWarning",
+]
+

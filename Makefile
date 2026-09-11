@@ -46,7 +46,5 @@ demo:
 	vipym run recipes/quick-demo-gpt2.yaml --output results/
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	find . -type d -name ".ruff_cache" -exec rm -rf {} +
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
+	python -c "import pathlib, shutil; [shutil.rmtree(p, ignore_errors=True) for pat in ['**/__pycache__', '**/.pytest_cache', '**/.ruff_cache', '**/*.egg-info', 'dist', 'build', '**/.mypy_cache', 'site'] for p in pathlib.Path('.').glob(pat)]; [p.unlink(missing_ok=True) for p in pathlib.Path('.').glob('**/*.pyc')]"
+

@@ -47,13 +47,24 @@ def doctor_cmd() -> None:
 
 @app.command("validate")
 def validate_config(
-    config_path: Path = typer.Option(
-        ..., "--config", "-c", help="Path to experiment YAML configuration"
+    path: Path | None = typer.Argument(
+        None, help="Path to experiment YAML configuration or recipe path"
+    ),
+    config_path: Path | None = typer.Option(
+        None, "--config", "-c", help="Path to experiment YAML configuration"
     ),
 ) -> None:
     """Validate an experiment YAML configuration file against Pydantic schema."""
+    target_path = path or config_path
+    if not target_path:
+        console.print(
+            "[bold red]Error:[/bold red] Please specify an experiment config path or recipe "
+            "(e.g. `vipym validate recipes/quick-demo-gpt2.yaml` or `--config recipes/quick-demo-gpt2.yaml`)"
+        )
+        raise typer.Exit(code=1)
+
     try:
-        cfg = ViPymExperimentConfig.from_yaml(config_path)
+        cfg = ViPymExperimentConfig.from_yaml(target_path)
         console.print(
             f"[bold green][VALID] Configuration is valid:[/bold green] [cyan]{cfg.experiment_id}[/cyan]"
         )

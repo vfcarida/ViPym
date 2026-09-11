@@ -77,6 +77,18 @@ class SmoothQuantCompressionMethod(CompressionMethod):
             if hasattr(tokenizer, "save_pretrained"):
                 tokenizer.save_pretrained(out)
 
+            from vipym.compression.export import write_quantization_config
+
+            write_quantization_config(
+                output_dir=out,
+                quant_method="compressed-tensors",
+                format_type="pack-quantized",
+                bits=8,
+                group_size=None,
+                symmetric=True,
+                extra_config={"alpha": self.alpha},
+            )
+
         total_bytes = sum(f.stat().st_size for f in out.glob("**/*") if f.is_file())
 
         return CompressionArtifact(

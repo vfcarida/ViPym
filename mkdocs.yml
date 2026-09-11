@@ -37,11 +37,18 @@ nav:
       - Troubleshooting: troubleshooting.md
       - Operational Runbook: runbook.md
       - Migration Guide: migration.md
+  - Infrastructure & Security:
+      - Sandbox & Security Architecture: security.md
+      - AWS Ephemeral Clusters: aws.md
+  - Research & Methodology:
+      - Literature Synthesis: research/RESEARCH_REPORT.md
+      - Comparative Analysis: research/RELATED_PROJECTS.md
+      - Test Strategy & Pyramid: testing/TEST_STRATEGY.md
   - Governance & Community:
-      - Contributing: ../CONTRIBUTING.md
-      - Code of Conduct: ../CODE_OF_CONDUCT.md
-      - Maintainers: ../MAINTAINERS.md
-      - Security Policy: ../SECURITY.md
+      - Contributing: community/contributing.md
+      - Code of Conduct: community/code_of_conduct.md
+      - Maintainers: community/maintainers.md
+      - Security Policy: community/security.md
 
 markdown_extensions:
   - admonition

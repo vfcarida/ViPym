@@ -39,6 +39,18 @@ def test_cli_validate_smoke_config():
     assert "Configuration is valid" in result.output
 
 
+def test_cli_validate_positional_config():
+    result = runner.invoke(app, ["validate", "configs/experiments/smoke_test.yaml"])
+    assert result.exit_code == 0
+    assert "Configuration is valid" in result.output
+
+
+def test_cli_validate_missing_config():
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 1
+    assert "Please specify an experiment config path" in result.output
+
+
 def test_cli_inspect_kimi_k3():
     result = runner.invoke(app, ["inspect-model", "--model", "moonshotai/Kimi-K3"])
     assert result.exit_code == 0

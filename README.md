@@ -198,6 +198,23 @@ VIPYM_API_TOKEN="secret-token" vipym studio --port 8080 --artifacts-dir results/
 
 ---
 
+## 📜 Citation
+
+If you use ViPym in your academic research, benchmark evaluations, or enterprise optimization workflows, please cite:
+
+```bibtex
+@software{carida2026vipym,
+  author       = {Vinicius Carid{\'a}},
+  title        = {{ViPym: Shrinking LLMs, Preserving Intelligence}},
+  year         = {2026},
+  publisher    = {GitHub},
+  version      = {0.2.0},
+  url          = {https://github.com/vfcarida/ViPym}
+}
+```
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on adding new compression methods, evaluation suites, and model adapters.

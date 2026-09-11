@@ -32,12 +32,14 @@ class AutoRoundCompressionMethod(CompressionMethod):
         group_size: int = 128,
         iters: int = 50,
         lr: float = 0.05,
+        sym: bool = True,
         **kwargs: Any,
     ) -> None:
         self.bits = bits
         self.group_size = group_size
         self.iters = iters
         self.lr = lr
+        self.sym = sym
         self.extra_kwargs = kwargs
 
     @property
@@ -126,9 +128,17 @@ class AutoRoundCompressionMethod(CompressionMethod):
                         input_ids = encoded["input_ids"].to(device)
                         model(input_ids)
                     elif hasattr(model, "forward"):
-                        # Dummy forward with random int IDs if tokenizer absent
-                        dummy_ids = torch.randint(0, 1000, (1, min(64, max_tokens)), device=device)
-                        model(dummy_ids)
+                        # Dummy forward with random int IDs if tokenizer absent, or float fallback
+                        try:
+                            dummy_ids = torch.randint(
+                                0, 1000, (1, min(64, max_tokens)), device=device
+                            )
+                            model(dummy_ids)
+                        except Exception:
+                            first_layer = linear_layers[0][1] if linear_layers else None
+                            in_dim = getattr(first_layer, "in_features", 64) if first_layer else 64
+                            dummy_floats = torch.randn(1, in_dim, device=device)
+                            model(dummy_floats)
         except Exception as exc:
             logger.warning(
                 f"Activation hook collection encountered error ({exc}); continuing with captured activations."
@@ -345,6 +355,17 @@ class AutoRoundCompressionMethod(CompressionMethod):
             # Save autoround metadata and scales
             (out / "autoround_metadata.json").write_text(
                 json.dumps(telemetry, indent=2), encoding="utf-8"
+            )
+
+            from vipym.compression.export import write_quantization_config
+
+            write_quantization_config(
+                output_dir=out,
+                quant_method="compressed-tensors",
+                format_type="pack-quantized",
+                bits=self.bits,
+                group_size=self.group_size,
+                symmetric=self.sym,
             )
 
         # Compute empirical compressed size
