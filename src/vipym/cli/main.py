@@ -672,5 +672,82 @@ def compare_cmd(
     )
 
 
+@app.command("sweep")
+def sweep_cmd(
+    config_path: Path = typer.Option(
+        ...,
+        "--config",
+        "-c",
+        help="Path to sweep YAML configuration (e.g. recipes/sweep-demo.yaml)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Directory to save sweep results and Pareto artifacts",
+    ),
+    no_resume: bool = typer.Option(
+        False,
+        "--no-resume",
+        help="Restart sweep from scratch, ignoring existing point checkpoints",
+    ),
+) -> None:
+    """Execute automated multi-dimensional compression sweep and compute Pareto frontier."""
+    from vipym.experiments.sweep import SweepGridConfig, SweepRunner
+
+    if not config_path.exists():
+        console.print(f"[bold red]Error: Sweep config '{config_path}' does not exist.[/bold red]")
+        raise typer.Exit(code=1)
+
+    try:
+        cfg = SweepGridConfig.from_yaml(config_path)
+    except Exception as e:
+        console.print(f"[bold red]Configuration Error in sweep YAML:[/bold red] {e}")
+        raise typer.Exit(code=1) from e
+
+    console.print(
+        f"\n[bold cyan]Starting ViPym Multi-Experiment Grid Sweep:[/bold cyan] [bold green]{cfg.sweep_id}[/bold green]"
+    )
+    console.print(f"Target Model: [magenta]{cfg.model_id}[/magenta]")
+    console.print(f"Grid Parameters: [yellow]{list(cfg.grid.keys())}[/yellow]")
+
+    runner = SweepRunner(config=cfg, artifacts_dir=output)
+    res = runner.run(resume=not no_resume)
+
+    console.print(
+        f"\n[bold green][SUCCESS] Grid Sweep Completed in {res.total_duration_seconds:.2f}s![/bold green]"
+    )
+    console.print(f"Total Points: [cyan]{res.completed_points}/{res.total_points}[/cyan]")
+    console.print(
+        f"Pareto-Optimal Points: [bold magenta]{len(res.pareto_optimal_points)}[/bold magenta]"
+    )
+
+    if res.pareto_optimal_points:
+        table = Table(title=f"Pareto Frontier Optimums — {cfg.sweep_id}")
+        table.add_column("Configuration", style="cyan")
+        table.add_column("Method", style="magenta")
+        table.add_column("Quality (Pass@1)", justify="right", style="green")
+        table.add_column("Compression", justify="right", style="yellow")
+        table.add_column("Latency (ms)", justify="right")
+        table.add_column("Peak VRAM", justify="right")
+        table.add_column("Cost / 1M Tok", justify="right")
+
+        for p in res.pareto_optimal_points:
+            table.add_row(
+                p.configuration_name,
+                p.compression_method,
+                f"{p.quality_score:.3f}",
+                f"{p.compression_ratio:.1f}x",
+                f"{p.latency_p50_ms:.1f}",
+                f"{p.peak_vram_gb:.1f} GB",
+                f"${p.cost_per_1m_tokens:.4f}",
+            )
+        console.print(table)
+
+    console.print(
+        f"\n[bold green]Detailed Sweep Report:[/bold green] [cyan]{res.report_file}[/cyan]"
+    )
+
+
 if __name__ == "__main__":
     app()

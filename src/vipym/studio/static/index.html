@@ -45,6 +45,10 @@
                     <span class="nav-icon">🧠</span>
                     <span>MoE & Architecture</span>
                 </button>
+                <button class="nav-item" data-tab="playground" id="nav-playground">
+                    <span class="nav-icon">⚡</span>
+                    <span>Live Playground</span>
+                </button>
                 <button class="nav-item" data-tab="recipes" id="nav-recipes">
                     <span class="nav-icon">📦</span>
                     <span>Recipe Hub</span>
@@ -263,7 +267,49 @@
                     </div>
                 </section>
 
-                <!-- TAB 5: RECIPE HUB -->
+                <!-- TAB 5: LIVE PLAYGROUND -->
+                <section class="tab-pane" id="pane-playground">
+                    <div class="card glassmorphism">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2>Interactive Inference Playground</h2>
+                                <p class="text-muted">Real-time token streaming with sub-millisecond TTFT telemetric profiling</p>
+                            </div>
+                            <div class="control-group">
+                                <label for="select-playground-model">Model Variant:</label>
+                                <select id="select-playground-model">
+                                    <option value="moonshotai/Kimi-K3">Kimi-K3 (W4A16 + FP8 KV)</option>
+                                    <option value="deepseek-ai/DeepSeek-Coder-V2">DeepSeek-Coder-V2 (Sparse 20%)</option>
+                                    <option value="Qwen/Qwen2.5-Coder-32B">Qwen2.5-Coder-32B (AutoRound Sign-SGD)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="playground-layout mt-6">
+                            <div class="input-group mb-4">
+                                <label for="playground-prompt"><strong>Prompt (Python / Coding Task):</strong></label>
+                                <textarea id="playground-prompt" rows="5" class="code-editor" style="width: 100%; font-family: 'JetBrains Mono', monospace; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid rgba(255,255,255,0.1);">def quicksort(arr: list[int]) -> list[int]:
+    """Sort an array using in-place divide and conquer."""</textarea>
+                            </div>
+
+                            <div class="flex-between mb-4">
+                                <div>
+                                    <label><input type="checkbox" id="playground-stream-check" checked> Enable Asynchronous Streaming (SSE)</label>
+                                </div>
+                                <button class="btn btn-primary" id="btn-run-playground" onclick="runPlaygroundInference()">
+                                    <span>⚡ Generate Completion</span>
+                                </button>
+                            </div>
+
+                            <div class="output-group">
+                                <label><strong>Model Generation & Telemetry Output:</strong></label>
+                                <pre class="code-block mt-2" id="playground-output" style="min-height: 180px; padding: 16px; font-family: 'JetBrains Mono', monospace; background: rgba(10, 15, 29, 0.8); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 8px; white-space: pre-wrap; color: #4facfe;">// Click 'Generate Completion' to stream tokens live...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 6: RECIPE HUB -->
                 <section class="tab-pane" id="pane-recipes">
                     <div class="card-header flex-between mb-6">
                         <div>

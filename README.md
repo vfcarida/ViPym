@@ -8,7 +8,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Serving: vLLM](https://img.shields.io/badge/Serving-vLLM%20%7C%20SGLang-00D4B2?style=for-the-badge)](https://github.com/vllm-project/vllm)
 [![Code style: ruff](https://img.shields.io/badge/Code%20Style-Ruff-000000?style=for-the-badge&logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
-[![Tests Passing](https://img.shields.io/badge/Tests-375%2F375%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
+[![Tests Passing](https://img.shields.io/badge/Tests-396%2F396%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/vfcarida/ViPym/actions)
 
 <p align="center">
@@ -19,8 +19,9 @@
   <a href="#-quickstart-in-3-commands">Quickstart</a> •
   <a href="#-comparison-with-existing-tools">Comparison</a> •
   <a href="#-pre-built-recipes-hub">Recipes Hub</a> •
+  <a href="#-multi-experiment-grid-sweeps-vipym-sweep">Sweeps</a> •
   <a href="#-system-architecture">Architecture</a> •
-  <a href="#-vipym-studio-web-dashboard">ViPym Studio</a> •
+  <a href="#-vipym-studio-interactive-web-dashboard--live-playground">ViPym Studio</a> •
   <a href="docs/troubleshooting.md">Troubleshooting</a> •
   <a href="docs/runbook.md">Runbook</a> •
   <a href="docs/use-cases/se-lifecycle.md">Use Cases</a> •
@@ -36,8 +37,8 @@
 Run a complete model compression, sandboxed HumanEval evaluation, and Pareto analysis in **under 2 minutes** on any standard laptop without requiring a GPU or cloud setup:
 
 ```bash
-# 1. Clone and install in editable mode
-git clone https://github.com/vfcarida/ViPym.git && cd ViPym && pip install -e ".[dev]"
+# 1. Clone and install in editable mode with Studio support
+git clone https://github.com/vfcarida/ViPym.git && cd ViPym && pip install -e ".[dev,studio]"
 
 # 2. Run the 5-minute CPU quickstart demo
 vipym run recipes/quick-demo-gpt2.yaml --output results/
@@ -76,6 +77,7 @@ ViPym provides battle-tested, schema-validated recipes ready to execute for comm
 | [`recipes/kimi-k3-full.yaml`](recipes/kimi-k3-full.yaml) | **Production 2.8T MoE Pipeline** | `Moonshot AI Kimi K3` | QuaRot Transform + AWQ W4A16 + FP8 KV |
 | [`recipes/cost-optimized-se.yaml`](recipes/cost-optimized-se.yaml) | **Maximum Cost Reduction ($/1M)** | `Qwen2.5-Coder-7B` | 2:4 Sparsity + GPTQ 4-bit ($0.15/1M tokens) |
 | [`recipes/quality-first-se.yaml`](recipes/quality-first-se.yaml) | **Near-Lossless (99.8% Pass@1)** | `Qwen2.5-Coder-32B` | Static FP8 Quantization + FP8 KV-Cache |
+| [`recipes/sweep-demo-quant-kvc.yaml`](recipes/sweep-demo-quant-kvc.yaml) | **Multi-Stage Parameter Sweep** | `GPT-2 (124M)` | Grid Sweep (AWQ 4/8-bit + FP8/INT4 KV) with Pareto Discovery |
 
 Execute any recipe with:
 ```bash
@@ -122,15 +124,61 @@ flowchart TD
 
 ---
 
-## 💻 ViPym Studio: Interactive Web Dashboard
+## 🔬 Multi-Experiment Grid Sweeps (`vipym sweep`)
 
-ViPym Studio provides an intuitive, hardened UI for monitoring live experiments and exploring Pareto trade-offs:
-- **3D & 2D Pareto Explorer**: Visualize Quality vs Latency vs VRAM vs Serving Cost.
-- **Real-Time WebSocket Stream**: Live telemetry and progress updates per layer and expert.
-- **Enterprise Security**: Bearer token authentication, rate limiting (100 req/min), audit logging, and read-only mode (`--read-only`).
+ViPym supports automated hyperparameter exploration across compression algorithms, bit-widths, sparsity levels, and KV-cache formats with checkpoint resumption and automated non-dominated Pareto frontier discovery:
 
 ```bash
+# Run a parameter sweep across AWQ bit-widths and KV-Cache formats
+vipym sweep --config recipes/sweep-demo-quant-kvc.yaml --output sweeps/
+```
+
+### Example Sweep Recipe (`recipes/sweep-demo-quant-kvc.yaml`):
+```yaml
+base_recipe: recipes/quick-demo-gpt2.yaml
+grid:
+  stages.0.parameters.bits: [4, 8]
+  stages.1.parameters.kv_bits: [4, 8]
+objectives:
+  - quality
+  - latency_ms
+  - vram_gb
+  - cost_per_million
+checkpoint_interval: 1
+```
+
+During execution, ViPym checkpoints progress in `state.json`, captures each evaluated configuration in `points/*.json`, and automatically computes the optimal non-dominated candidates:
+
+```
+┌────────────────────────────────────── Pareto Frontier ──────────────────────────────────────┐
+│ Run ID     Bits   KV-Bits   Quality (Pass@1)   Latency (p50)   Peak VRAM   Cost / 1M Tk   │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│ point_000     4         4            64.2 %         14.2 ms      2.1 GB         $0.08   │
+│ point_001     4         8            67.8 %         18.4 ms      2.8 GB         $0.11   │
+│ point_003     8         8            72.1 %         24.1 ms      4.2 GB         $0.19   │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 💻 ViPym Studio: Interactive Web Dashboard & Live Playground
+
+ViPym Studio is an enterprise-grade, high-concurrency ASGI application powered by **FastAPI and Uvicorn**, providing real-time telemetry, model interaction, and decision support:
+
+- **Live Model Playground**: Interactive token generation interface with Server-Sent Events (SSE) streaming (`POST /api/inference/generate`) featuring typewriter output, real-time Time-to-First-Token (TTFT), and token/sec throughput gauges.
+- **Topological DAG Visualizer**: Dynamic interactive graph representing Kahn's DAG execution stages, intermediate tensors, and multi-parent model fusion.
+- **MoE Co-Activation Matrix**: Real-time expert routing correlation matrix visualizing co-firing expert clusters in Mixtral, DeepSeek, and Kimi architectures.
+- **3D & 2D Pareto Explorer**: Interactive Plotly scatter plots mapping Quality vs. Latency vs. VRAM vs. Serving Cost ($/1M tokens).
+- **Multi-Format Report Export**: One-click download of synthesized evaluation reports in Markdown, LaTeX publication tables, and raw JSON.
+- **Real-Time Push Stream**: Authenticated WebSocket (`/ws/progress`) delivering live step-by-step progress and hardware telemetry.
+- **Hardened Security**: Bearer token authentication (`VIPYM_API_TOKEN`), per-client rate limiting (100 requests/minute), audit logging, and read-only mode (`--read-only`).
+
+```bash
+# Launch Studio locally on port 8080
 vipym studio --port 8080 --artifacts-dir results/
+
+# Launch in secure read-only mode with custom API token
+VIPYM_API_TOKEN="secret-token" vipym studio --port 8080 --artifacts-dir results/ --read-only
 ```
 
 ---

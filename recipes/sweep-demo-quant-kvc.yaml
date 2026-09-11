@@ -1,0 +1,10 @@
+sweep_id: "demo-quant-kvc-sweep"
+base_model: "moonshotai/Kimi-K3"
+grid:
+  quantization: ["awq", "gptq", "autoround"]
+  bits: [4, 8]
+  kv_cache: ["fp8_e4m3", "fp16"]
+evaluation:
+  suites: ["humaneval"]
+  limit: 10
+artifacts_dir: "./artifacts"

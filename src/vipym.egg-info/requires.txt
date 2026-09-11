@@ -16,7 +16,7 @@ docker>=7.0.0
 structlog>=24.1.0
 
 [all]
-vipym[compression,dev,eval,serving,torch]
+vipym[compression,dev,eval,serving,studio,torch]
 
 [compression]
 torch>=2.4.0
@@ -45,6 +45,11 @@ coverage>=7.4.0
 
 [serving]
 vllm>=0.5.4
+
+[studio]
+fastapi>=0.110.0
+uvicorn>=0.29.0
+websockets>=12.0
 
 [torch]
 torch>=2.4.0

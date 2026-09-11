@@ -52,3 +52,37 @@ Performs bootstrap confidence interval estimation and non-parametric hypothesis 
 Compares multiple compression runs, generating Pareto diffs and annual enterprise ROI models.
 - **`generate_html_report(output_path: Path | str) -> Path`**: Produces a standalone comparison HTML dashboard.
 - **`format_rich_table() -> Table`**: Generates a Rich terminal matrix of comparative results.
+
+---
+
+## 5. Grid Sweeps & Multi-Experiment Exploration
+
+### `vipym.experiments.sweep.SweepRunner`
+Multi-dimensional parameter sweep orchestrator with Cartesian product expansion, automated checkpointing, and Pareto front discovery.
+- **`run(resume: bool = True) -> SweepResult`**: Iterates through the hyperparameter grid, resuming from `state.json` if interrupted, and computes the non-dominated Pareto frontier over evaluated combinations.
+- **`generate_configurations() -> list[dict[str, Any]]`**: Expands nested dot-notation grid specifications into concrete configuration dictionaries.
+
+### `vipym.experiments.sweep.SweepGridConfig`
+Pydantic model defining the sweep space:
+- `base_recipe`: Path to base recipe YAML.
+- `grid`: Mapping of parameter paths to candidate value arrays (e.g., `stages.0.parameters.bits: [4, 8]`).
+- `objectives`: Evaluation metrics to optimize (`quality`, `latency_ms`, `vram_gb`, `cost_per_million`).
+- `checkpoint_interval`: Run state persistence frequency.
+
+---
+
+## 6. ViPym Studio & Real-Time Streaming
+
+### `vipym.studio.server.StudioASGIServer`
+High-concurrency ASGI server engine built on FastAPI and Uvicorn, replacing legacy synchronous servers with asynchronous non-blocking event loops.
+- **`serve_forever()`**: Starts the Uvicorn ASGI server.
+- **`shutdown()`**: Gracefully terminates the running server and active WebSocket connections.
+
+### `vipym.studio.app.create_studio_app(artifacts_dir, read_only, api_token, max_requests_per_minute)`
+Factory producing the FastAPI application equipped with:
+- **`GET /api/dag/graph`**: Topological DAG node and edge visualizer payload.
+- **`GET /api/moe/matrix`**: Expert co-activation correlation matrix for MoE architectures.
+- **`POST /api/inference/generate`**: Model generation supporting Server-Sent Events (`text/event-stream`) token typewriter streaming.
+- **`GET /api/reports/{id}/export`**: Multi-format report download (`markdown`, `latex`, `json`).
+- **`WebSocket /ws/progress`**: Real-time push broadcast for compression progress and step telemetry.
+

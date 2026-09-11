@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -201,10 +202,12 @@ class BigCodeBenchSuite(EvaluationSuite):
         variant: Literal["full", "hard", "lite"] = "full",
         timeout_per_task: int = 60,
         parallel_tasks: int = 4,
+        offline: bool = False,
     ) -> None:
         self.variant = variant.lower()
         self.timeout_per_task = timeout_per_task
         self.parallel_tasks = parallel_tasks
+        self.offline = offline
 
     @property
     def name(self) -> str:
@@ -221,44 +224,50 @@ class BigCodeBenchSuite(EvaluationSuite):
     def load_tasks(self, limit: int | None = None) -> list[BenchmarkTask]:
         """Load BigCodeBench tasks from Hugging Face or fallback collection."""
         tasks: list[BenchmarkTask] = []
-        dataset_name = (
-            _BIGCODEBENCH_HARD_DATASET if self.variant == "hard" else _BIGCODEBENCH_HF_DATASET
-        )
+        is_offline = self.offline or os.environ.get("VIPYM_OFFLINE", "").strip() == "1"
 
-        try:
-            from datasets import load_dataset  # type: ignore[import]
-
-            hf_ds = load_dataset(
-                dataset_name, split="v0.1.2" if self.variant != "hard" else "train"
+        if not is_offline:
+            dataset_name = (
+                _BIGCODEBENCH_HARD_DATASET if self.variant == "hard" else _BIGCODEBENCH_HF_DATASET
             )
-            for item in hf_ds:
-                libs_val = item.get("libs", [])
-                if isinstance(libs_val, str):
-                    try:
-                        libs_list = json.loads(libs_val)
-                    except json.JSONDecodeError:
-                        libs_list = [l.strip() for l in libs_val.split(",") if l.strip()]
-                else:
-                    libs_list = list(libs_val)
 
-                tasks.append(
-                    BenchmarkTask(
-                        task_id=item.get("task_id", "BigCodeBench/task"),
-                        suite=self.name,
-                        entry_point=item.get("entry_point", "task_func"),
-                        prompt=item.get("complete_prompt", item.get("prompt", "")),
-                        canonical_solution=item.get("canonical_solution", ""),
-                        test_code=item.get("test", ""),
-                        timeout_seconds=self.timeout_per_task,
-                        metadata={
-                            "libs": libs_list,
-                            "variant": self.variant,
-                        },
-                    )
+            try:
+                from datasets import load_dataset  # type: ignore[import]
+
+                hf_ds = load_dataset(
+                    dataset_name, split="v0.1.2" if self.variant != "hard" else "train"
                 )
-                if limit and len(tasks) >= limit:
-                    break
-        except Exception:  # noqa: BLE001
+                for item in hf_ds:
+                    libs_val = item.get("libs", [])
+                    if isinstance(libs_val, str):
+                        try:
+                            libs_list = json.loads(libs_val)
+                        except json.JSONDecodeError:
+                            libs_list = [l.strip() for l in libs_val.split(",") if l.strip()]
+                    else:
+                        libs_list = list(libs_val)
+
+                    tasks.append(
+                        BenchmarkTask(
+                            task_id=item.get("task_id", "BigCodeBench/task"),
+                            suite=self.name,
+                            entry_point=item.get("entry_point", "task_func"),
+                            prompt=item.get("complete_prompt", item.get("prompt", "")),
+                            canonical_solution=item.get("canonical_solution", ""),
+                            test_code=item.get("test", ""),
+                            timeout_seconds=self.timeout_per_task,
+                            metadata={
+                                "libs": libs_list,
+                                "variant": self.variant,
+                            },
+                        )
+                    )
+                    if limit and len(tasks) >= limit:
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+
+        if not tasks:
             for item in _BIGCODEBENCH_SAMPLE_TASKS:
                 tasks.append(
                     BenchmarkTask(

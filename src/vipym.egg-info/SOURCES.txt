@@ -102,6 +102,7 @@ src/vipym/evaluation/suites/bigcodebench.py
 src/vipym/evaluation/suites/crqbench.py
 src/vipym/evaluation/suites/evalplus.py
 src/vipym/evaluation/suites/humaneval.py
+src/vipym/evaluation/suites/livecodebench.py
 src/vipym/evaluation/suites/mbpp.py
 src/vipym/evaluation/suites/swebench.py
 src/vipym/evaluation/suites/testgeneval.py
@@ -112,6 +113,7 @@ src/vipym/experiments/checkpoint.py
 src/vipym/experiments/manifest.py
 src/vipym/experiments/runner.py
 src/vipym/experiments/state.py
+src/vipym/experiments/sweep.py
 src/vipym/gates/__init__.py
 src/vipym/gates/config.py
 src/vipym/gates/eval_gate.py
@@ -161,6 +163,7 @@ src/vipym/security/sandbox.py
 src/vipym/security/sanitizer.py
 src/vipym/security/threat_model.py
 src/vipym/studio/__init__.py
+src/vipym/studio/app.py
 src/vipym/studio/auth.py
 src/vipym/studio/server.py
 src/vipym/studio/websocket.py

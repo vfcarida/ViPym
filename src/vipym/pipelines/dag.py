@@ -167,12 +167,27 @@ class DirectedAcyclicCompressionPipeline(CompressionPipeline):
                 except Exception:
                     stage_tokenizer = model_adapter.get_tokenizer(model_id, revision=revision)
 
+            # Build multi-parent context for merging nodes
+            parent_artifacts = {
+                dep: self.stage_artifacts[dep]
+                for dep in node.dependencies
+                if dep in self.stage_artifacts
+            }
+            parent_models_dict = {
+                dep: stage_models[dep] for dep in node.dependencies if dep in stage_models
+            }
+
+            stage_kwargs = dict(node.parameters)
+            if len(node.dependencies) > 1:
+                stage_kwargs["parent_artifacts"] = parent_artifacts
+                stage_kwargs["parent_models"] = parent_models_dict
+
             try:
                 current_artifact = node.method.compress(
                     model=stage_model,
                     tokenizer=stage_tokenizer,
                     output_dir=stage_out_dir,
-                    **node.parameters,
+                    **stage_kwargs,
                 )
                 node.executed = True
                 duration = tracker.complete_stage(

@@ -12,7 +12,13 @@ A modular, reproducible, production-grade LLM compression benchmarking and evalu
 git clone https://github.com/vfcarida/ViPym.git
 cd ViPym
 
-# Install in editable mode with all optional dependencies
+# Minimal installation
+pip install -e .
+
+# With Interactive Web Studio (FastAPI, Uvicorn, WebSockets)
+pip install -e ".[studio]"
+
+# Complete installation with all compression, evaluation, and studio dependencies
 pip install -e ".[all]"
 ```
 
@@ -48,6 +54,8 @@ The run will:
 | Command | Description |
 |---|---|
 | `vipym run --config <path>` | Execute full end-to-end experiment |
+| `vipym sweep --config <path>` | Run multi-dimensional parameter grid sweep with Pareto discovery |
+| `vipym studio --artifacts-dir <path>` | Launch interactive web dashboard & live token playground |
 | `vipym validate --config <path>` | Validate configuration schema |
 | `vipym baseline --model <id>` | Establish uncompressed baseline |
 | `vipym compress --model <id> --method awq` | Run single compression algorithm |
@@ -57,3 +65,4 @@ The run will:
 | `vipym inspect-model --model moonshotai/Kimi-K3` | Inspect MoE architecture and parameter topology |
 | `vipym list-compressors` | List all registered compression algorithms |
 | `vipym list-evaluators` | List all registered benchmark suites |
+

@@ -77,6 +77,7 @@ class MockInferenceBackend(InferenceBackend):
 @pytest.fixture(autouse=True)
 def setup_unsafe_sandbox(monkeypatch):
     monkeypatch.setenv("VIPYM_ALLOW_UNSAFE", "1")
+    monkeypatch.setenv("VIPYM_OFFLINE", "1")
 
 
 @pytest.fixture

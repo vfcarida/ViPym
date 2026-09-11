@@ -44,6 +44,10 @@ Requires-Dist: safetensors>=0.4.3; extra == "compression"
 Requires-Dist: llm-compressor>=0.1.0; extra == "compression"
 Requires-Dist: auto-gptq>=0.7.1; extra == "compression"
 Requires-Dist: autoawq>=0.2.5; extra == "compression"
+Provides-Extra: studio
+Requires-Dist: fastapi>=0.110.0; extra == "studio"
+Requires-Dist: uvicorn>=0.29.0; extra == "studio"
+Requires-Dist: websockets>=12.0; extra == "studio"
 Provides-Extra: serving
 Requires-Dist: vllm>=0.5.4; extra == "serving"
 Provides-Extra: dev
@@ -61,7 +65,7 @@ Requires-Dist: datasets>=2.18.0; extra == "eval"
 Requires-Dist: mutmut>=2.4.0; extra == "eval"
 Requires-Dist: coverage>=7.4.0; extra == "eval"
 Provides-Extra: all
-Requires-Dist: vipym[compression,dev,eval,serving,torch]; extra == "all"
+Requires-Dist: vipym[compression,dev,eval,serving,studio,torch]; extra == "all"
 Dynamic: license-file
 
 <div align="center">
@@ -70,11 +74,11 @@ Dynamic: license-file
 ### *Compress LLMs Without Losing Code Quality*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Serving: vLLM](https://img.shields.io/badge/Serving-vLLM%20%7C%20SGLang-00D4B2?style=for-the-badge)](https://github.com/vllm-project/vllm)
 [![Code style: ruff](https://img.shields.io/badge/Code%20Style-Ruff-000000?style=for-the-badge&logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
-[![Tests Passing](https://img.shields.io/badge/Tests-364%2F364%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
+[![Tests Passing](https://img.shields.io/badge/Tests-375%2F375%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/vfcarida/ViPym/actions)
 
 <p align="center">
@@ -137,11 +141,11 @@ ViPym provides battle-tested, schema-validated recipes ready to execute for comm
 
 | Recipe Configuration | Scenario / Architecture | Target Model | Highlights |
 | :--- | :--- | :--- | :--- |
-| [`recipes/quick-demo-gpt2.yaml`](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/recipes/quick-demo-gpt2.yaml) | **5-Minute CPU Demo** | `GPT-2 (124M)` | Wanda 50% + GPTQ 4-bit, instant local run |
-| [`recipes/mixtral-compression.yaml`](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/recipes/mixtral-compression.yaml) | **MoE Architecture Showcase** | `Mixtral-8x7B (47B MoE)` | 25% Expert Pruning + AWQ W4A16 + FP8 KV |
-| [`recipes/kimi-k3-full.yaml`](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/recipes/kimi-k3-full.yaml) | **Production 2.8T MoE Pipeline** | `Moonshot AI Kimi K3` | QuaRot Transform + AWQ W4A16 + FP8 KV |
-| [`recipes/cost-optimized-se.yaml`](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/recipes/cost-optimized-se.yaml) | **Maximum Cost Reduction ($/1M)** | `Qwen2.5-Coder-7B` | 2:4 Sparsity + GPTQ 4-bit ($0.15/1M tokens) |
-| [`recipes/quality-first-se.yaml`](file:///c:/Users/vinicius/Documents/GeminiCodes/ViPym/recipes/quality-first-se.yaml) | **Near-Lossless (99.8% Pass@1)** | `Qwen2.5-Coder-32B` | Static FP8 Quantization + FP8 KV-Cache |
+| [`recipes/quick-demo-gpt2.yaml`](recipes/quick-demo-gpt2.yaml) | **5-Minute CPU Demo** | `GPT-2 (124M)` | Wanda 50% + GPTQ 4-bit, instant local run |
+| [`recipes/mixtral-compression.yaml`](recipes/mixtral-compression.yaml) | **MoE Architecture Showcase** | `Mixtral-8x7B (47B MoE)` | 25% Expert Pruning + AWQ W4A16 + FP8 KV |
+| [`recipes/kimi-k3-full.yaml`](recipes/kimi-k3-full.yaml) | **Production 2.8T MoE Pipeline** | `Moonshot AI Kimi K3` | QuaRot Transform + AWQ W4A16 + FP8 KV |
+| [`recipes/cost-optimized-se.yaml`](recipes/cost-optimized-se.yaml) | **Maximum Cost Reduction ($/1M)** | `Qwen2.5-Coder-7B` | 2:4 Sparsity + GPTQ 4-bit ($0.15/1M tokens) |
+| [`recipes/quality-first-se.yaml`](recipes/quality-first-se.yaml) | **Near-Lossless (99.8% Pass@1)** | `Qwen2.5-Coder-32B` | Static FP8 Quantization + FP8 KV-Cache |
 
 Execute any recipe with:
 ```bash
