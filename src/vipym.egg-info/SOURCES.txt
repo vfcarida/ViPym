@@ -28,6 +28,7 @@ src/vipym/cli/main.py
 src/vipym/cloud/__init__.py
 src/vipym/cloud/cloudwatch.py
 src/vipym/cloud/ec2_ephemeral.py
+src/vipym/cloud/iam.py
 src/vipym/cloud/s3.py
 src/vipym/compression/__init__.py
 src/vipym/compression/export.py
@@ -126,6 +127,7 @@ src/vipym/inference/speculative.py
 src/vipym/inference/vllm_engine.py
 src/vipym/inference/backends/__init__.py
 src/vipym/inference/backends/base.py
+src/vipym/inference/backends/hf_backend.py
 src/vipym/inference/backends/sglang_backend.py
 src/vipym/inference/backends/vllm_backend.py
 src/vipym/interfaces/compression.py

@@ -169,22 +169,112 @@ def evaluate_cmd(
     model_path_or_id: str = typer.Option(..., "--model", "-m", help="Model path or HuggingFace ID"),
     suite: str = typer.Option("humaneval", "--suite", "-s", help="Evaluation suite name"),
     limit: int | None = typer.Option(None, "--limit", "-l", help="Cap number of tasks"),
+    backend: str = typer.Option("vllm", "--backend", "-b", help="Inference backend (vllm, hf)"),
+    gate: bool = typer.Option(
+        False,
+        "--gate",
+        help="Run in CI/CD quality gate mode, failing with non-zero exit code if thresholds are breached",
+    ),
+    min_pass1: float = typer.Option(
+        0.0,
+        "--min-pass1",
+        help="Minimum required Pass@1 accuracy threshold for gate (0.0 to 1.0)",
+    ),
+    min_compile_rate: float = typer.Option(
+        0.0,
+        "--min-compile-rate",
+        help="Minimum required code compile rate threshold for gate (0.0 to 1.0)",
+    ),
+    output_json: Path | None = typer.Option(
+        None,
+        "--output-json",
+        "-o",
+        help="Optional destination path to write JSON evaluation metrics report",
+    ),
+    allow_unsafe: bool = typer.Option(
+        False,
+        "--allow-unsafe",
+        help="Explicitly allow local non-containerized code execution if Docker is unavailable (development/testing only)",
+    ),
 ) -> None:
-    """Evaluate a model on a benchmark suite without compression."""
+    """Evaluate a model on a benchmark suite with optional CI/CD automated quality gate enforcement."""
+    import os
+
+    from vipym.config.schema import EvaluationConfig
     from vipym.evaluation.runner import BenchmarkRunner
     from vipym.inference.registry import InferenceRegistry
 
     console.print(
         f"Evaluating model [cyan]{model_path_or_id}[/cyan] on suite [magenta]{suite}[/magenta]"
     )
-    backend = InferenceRegistry.get("vllm")
-    backend.start(model_path_or_id)
-    runner = BenchmarkRunner()
-    res = runner.run_suite(suite, backend, task_limit=limit)
-    backend.stop()
+    chosen_backend = backend.lower()
+    try:
+        engine = InferenceRegistry.get(chosen_backend)
+    except Exception:
+        logger.warning("Backend '%s' unavailable, falling back to 'hf'", chosen_backend)
+        engine = InferenceRegistry.get("hf")
+
+    engine.start(model_path_or_id)
+    try:
+        is_unsafe = allow_unsafe or os.environ.get("VIPYM_ALLOW_UNSAFE") == "1"
+        eval_cfg = EvaluationConfig(
+            suites=[suite],
+            task_limit=limit,
+            allow_unsafe_execution=is_unsafe,
+        )
+        runner = BenchmarkRunner(evaluation_config=eval_cfg)
+        res = runner.run_suite(suite, engine, task_limit=limit)
+    finally:
+        engine.stop()
+
     console.print(
-        f"Results for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1 * 100:.1f}%[/bold green]"
+        f"Results for [magenta]{res.suite_name}[/magenta]: Pass@1 = [bold green]{res.pass_at_1 * 100:.1f}%[/bold green], Compile Rate = [bold cyan]{res.compile_rate * 100:.1f}%[/bold cyan]"
     )
+
+    violations: list[str] = []
+    if gate:
+        if res.pass_at_1 < min_pass1:
+            violations.append(
+                f"Pass@1 ({res.pass_at_1:.3f}) fell below minimum required threshold ({min_pass1:.3f})"
+            )
+        if res.compile_rate < min_compile_rate:
+            violations.append(
+                f"Compile Rate ({res.compile_rate:.3f}) fell below minimum required threshold ({min_compile_rate:.3f})"
+            )
+
+    gate_passed = len(violations) == 0
+
+    if output_json:
+        output_json.parent.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "model": model_path_or_id,
+            "suite": res.suite_name,
+            "total_tasks": res.total_tasks,
+            "passed_tasks": res.passed_tasks,
+            "pass_at_1": res.pass_at_1,
+            "compile_rate": res.compile_rate,
+            "unit_test_pass_rate": getattr(res, "unit_test_pass_rate", res.pass_at_1),
+            "gate_enabled": gate,
+            "gate_passed": gate_passed,
+            "violations": violations,
+            "thresholds": {
+                "min_pass1": min_pass1,
+                "min_compile_rate": min_compile_rate,
+            },
+        }
+
+        output_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        console.print(f"Gate metrics summary written to: [cyan]{output_json}[/cyan]")
+
+    if gate and not gate_passed:
+        console.print("\n[bold red][GATE FAILED] Quality gate violations detected:[/bold red]")
+        for v in violations:
+            console.print(f"  [red]✗[/red] {v}")
+        raise typer.Exit(code=1)
+    elif gate:
+        console.print(
+            "\n[bold green][GATE PASSED] All model quality gate thresholds satisfied![/bold green]"
+        )
 
 
 @app.command("benchmark")
@@ -758,6 +848,76 @@ def sweep_cmd(
     console.print(
         f"\n[bold green]Detailed Sweep Report:[/bold green] [cyan]{res.report_file}[/cyan]"
     )
+
+
+@app.command("publish")
+def publish_cmd(
+    checkpoint_dir: Path = typer.Argument(
+        ...,
+        help="Path to local compressed model checkpoint directory",
+    ),
+    repo_id: str = typer.Option(
+        ...,
+        "--repo-id",
+        "-r",
+        help="Target Hugging Face Hub repository ID (e.g. 'username/model-name')",
+    ),
+    token: str | None = typer.Option(
+        None,
+        "--token",
+        "-t",
+        help="Hugging Face API token (defaults to HF_TOKEN environment variable)",
+    ),
+    private: bool = typer.Option(
+        False,
+        "--private",
+        help="Set the Hugging Face repository visibility to private",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Validate checkpoint and generate README model card without uploading to HF Hub",
+    ),
+    commit_message: str = typer.Option(
+        "Upload compressed model via ViPym",
+        "--message",
+        "-m",
+        help="Commit message for the Hugging Face Hub upload",
+    ),
+) -> None:
+    """Publish a compressed model checkpoint to Hugging Face Hub with an evaluation model card."""
+    from vipym.artifacts.publisher import HFModelPublisher
+
+    console.print(
+        f"\n[bold cyan]ViPym Model Publisher[/bold cyan] -> [bold green]{repo_id}[/bold green]"
+    )
+    console.print(f"Checkpoint Directory: [yellow]{checkpoint_dir}[/yellow]")
+    console.print(
+        f"Mode: [magenta]{'DRY-RUN (Simulated)' if dry_run else 'ACTIVE UPLOAD'}[/magenta]"
+    )
+
+    try:
+        publisher = HFModelPublisher(token=token)
+        result = publisher.publish(
+            checkpoint_dir=checkpoint_dir,
+            repo_id=repo_id,
+            private=private,
+            commit_message=commit_message,
+            dry_run=dry_run,
+        )
+
+        console.print(
+            f"\n[bold green][SUCCESS] Checkpoint {'prepared' if dry_run else 'published'} successfully![/bold green]"
+        )
+        console.print(f"Repository URL: [cyan underline]{result.repo_url}[/cyan underline]")
+        console.print(
+            f"Files: [yellow]{len(result.uploaded_files)}[/yellow] ({result.total_bytes / (1024 * 1024):.2f} MB)"
+        )
+        console.print(f"Model Card: [magenta]{result.model_card_path}[/magenta]")
+
+    except Exception as e:
+        console.print(f"\n[bold red][ERROR] Publishing failed:[/bold red] {e}")
+        raise typer.Exit(code=1) from e
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from vipym.config.constants import (
     DEFAULT_AWS_REGION,
     DEFAULT_DATA_TRANSFER_RATE,
     DEFAULT_S3_STORAGE_RATE,
+    CompressionMethodType,
     OptimizationObjective,
 )
 from vipym.config.exceptions import ConfigurationError
@@ -57,38 +58,14 @@ class CompressionStageConfig(BaseModel):
     """Configuration for a discrete compression stage in the execution DAG."""
 
     stage_id: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$", description="Unique stage identifier")
-    method: Literal[
-        "rtn",
-        "awq",
-        "gptq",
-        "smoothquant",
-        "autoround",
-        "spinquant",
-        "quarot",
-        "mxfp",
-        "fp8",
-        "prune_magnitude",
-        "prune_nm",
-        "prune_wanda",
-        "distill_response",
-        "distill_logit",
-        "kv_cache_fp8",
-        "kv_cache_int4",
-    ] = Field(..., description="Compression method name")
-    scheme: Literal[
-        "W4A16",
-        "W8A8",
-        "W8A16",
-        "FP8",
-        "MXFP4",
-        "MXFP8",
-        "INT4",
-        "INT8",
-        "2:4_SPARSITY",
-        "STRUCTURED_SPARSITY",
-        "UNSTRUCTURED_SPARSITY",
-        "DISTILL_STUDENT",
-    ] = Field(..., description="Target quantization or sparsity scheme")
+    method: str = Field(
+        ...,
+        description="Compression method name (built-in algorithm or dynamically registered plugin)",
+    )
+    scheme: str = Field(
+        ...,
+        description="Target quantization, sparsity, or distillation scheme (e.g. W4A16, FP8, UNSTRUCTURED_SPARSITY)",
+    )
     calibration: CalibrationConfig | None = Field(
         default=None, description="Calibration parameters if required"
     )
@@ -98,6 +75,29 @@ class CompressionStageConfig(BaseModel):
     dependencies: list[str] = Field(
         default_factory=list, description="IDs of prerequisite DAG stages"
     )
+
+    @field_validator("method")
+    @classmethod
+    def validate_compression_method(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if not clean:
+            raise ValueError("Compression method name cannot be empty.")
+
+        known_methods = {m.value for m in CompressionMethodType}
+        try:
+            from vipym.compression.registry import CompressionRegistry
+
+            registered = CompressionRegistry.list_methods()
+            known_methods.update(registered.keys())
+        except Exception:
+            pass
+
+        if clean not in known_methods:
+            raise ValueError(
+                f"Unknown compression method '{v}'. Must be a built-in method "
+                f"or registered via CompressionRegistry. Available: {sorted(known_methods)}"
+            )
+        return clean
 
 
 class ServingConfig(BaseModel):
@@ -238,6 +238,11 @@ class ViPymExperimentConfig(BaseModel):
                 raise ValueError(f"Duplicate stage_id '{s.stage_id}' in compression_pipeline")
             seen.add(s.stage_id)
         return stages
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ViPymExperimentConfig":
+        """Instantiate ViPymExperimentConfig from a dictionary."""
+        return cls(**data)
 
     @classmethod
     def from_yaml(cls, path: Path | str) -> "ViPymExperimentConfig":

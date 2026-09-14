@@ -1,8 +1,10 @@
 """Intelligent Calibration Dataset Manager with Automated Contamination Purging.
 
-Manages code calibration datasets for post-training quantization (AWQ, GPTQ, SmoothQuant, AutoRound)
-and pruning (Wanda, SparseGPT). Automatically audits and removes prompts overlapping with
-evaluation benchmark suites (HumanEval, MBPP, etc.) prior to model calibration.
+Manages code and multi-domain calibration datasets for post-training quantization
+(AWQ, GPTQ, SmoothQuant, AutoRound) and pruning (Wanda, SparseGPT). Automatically
+audits and removes prompts overlapping with evaluation benchmark suites (HumanEval,
+MBPP, etc.) prior to model calibration. Supports multi-domain calibration mixing
+(e.g., code + reasoning + technical documentation).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import random
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +24,7 @@ from vipym.evaluation.registry import EvaluationRegistry
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Bundled High-Quality Code Calibration Samples (Offline / Fallback)
+# Bundled High-Quality Code & Text Calibration Samples (Offline / Fallback)
 # ---------------------------------------------------------------------------
 
 _CANONICAL_CODE_CORPUS = [
@@ -71,6 +74,19 @@ class MetricRecord:
     def serialize(self) -> Dict[str, Any]:
         return {"metric": self.name, "val": self.value, "ts": self.timestamp, "tags": self.tags}
 """,
+]
+
+_CANONICAL_TEXT_CORPUS = [
+    """In modern software architecture, decoupled service boundaries and asynchronous message
+queues provide resilience against transient network failures. Microservices maintain dedicated
+data stores to prevent cascading schema migrations across distributed domains.""",
+    """Calculus of variations deals with maximizing or minimizing functionals, which are mappings
+from a set of functions to the real numbers. The Euler-Lagrange equation represents a necessary
+condition for the extremum of a differentiable functional.""",
+    """Database query execution plans utilize index scans and hash joins to minimize I/O overhead.
+Proper indexing on foreign keys accelerates relational integrity lookups and reduces lock contention.""",
+    """Distributed consensus algorithms like Raft and Paxos ensure replicated state machine consistency
+across unreliable networks by electing a leader and replicating an append-only log across a majority quorum.""",
 ]
 
 
@@ -134,6 +150,61 @@ class ASTCodeChunker:
         return blocks if blocks else ([code.strip()] if code.strip() else [])
 
 
+class DomainMixSpec(BaseModel):
+    """Specification for a single domain in a multi-domain calibration mix."""
+
+    domain_name: str = Field(..., description="Domain identifier (e.g. 'code', 'text', 'math')")
+    dataset_name_or_path: str = Field(
+        default="", description="Dataset path, HuggingFace repository, or local file"
+    )
+    split: str = Field(default="train", description="Split to sample from")
+    weight: float = Field(default=1.0, ge=0.0, description="Proportional sampling weight")
+    samples: list[str] = Field(
+        default_factory=list, description="Explicit in-memory raw text samples"
+    )
+
+
+class MultiDomainCalibrationMixer:
+    """Interleaves and mixes multi-domain calibration samples (code + text + math) with deterministic seeding."""
+
+    @staticmethod
+    def mix_corpora(
+        corpora: dict[str, list[str]],
+        weights: dict[str, float] | None = None,
+        total_samples: int = 256,
+        seed: int = 42,
+    ) -> list[str]:
+        """Mix multiple text domains according to specified weights."""
+        if not corpora:
+            return []
+
+        active_corpora = {k: v for k, v in corpora.items() if v}
+        if not active_corpora:
+            return []
+
+        w = weights or dict.fromkeys(active_corpora, 1.0)
+        total_weight = sum(w.get(k, 1.0) for k in active_corpora)
+        if total_weight <= 0:
+            total_weight = 1.0
+
+        # Determine target sample counts per domain
+        counts: dict[str, int] = {}
+        for domain in active_corpora:
+            ratio = w.get(domain, 1.0) / total_weight
+            counts[domain] = max(1, int(round(total_samples * ratio)))
+
+        rng = random.Random(seed)
+        mixed_samples: list[str] = []
+        for domain, target_count in counts.items():
+            pool = active_corpora[domain]
+            # Cycle pool if necessary
+            full_domain_samples = (pool * (target_count // len(pool) + 1))[:target_count]
+            mixed_samples.extend(full_domain_samples)
+
+        rng.shuffle(mixed_samples)
+        return mixed_samples[:total_samples]
+
+
 class CalibrationConfig(BaseModel):
     """Configuration for calibration data ingestion and preprocessing."""
 
@@ -157,6 +228,16 @@ class CalibrationConfig(BaseModel):
         default=False,
         description="Preserve syntactic function/class boundaries during tokenization and chunking",
     )
+    domain_mix: list[DomainMixSpec] = Field(
+        default_factory=list,
+        description="Optional multi-domain calibration specifications with proportional weights",
+    )
+    mix_code_ratio: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Proportional ratio of code to general text when auto-mixing (1.0 = pure code)",
+    )
 
 
 class CalibrationDatasetManager:
@@ -166,12 +247,13 @@ class CalibrationDatasetManager:
         self.config = config or CalibrationConfig()
         self.auditor = ContaminationAuditor(n_gram_size=8)
 
-    def load_raw_samples(self) -> list[str]:
-        """Ingest raw code samples from Hugging Face or local files with fallback."""
-        ds_source = self.config.dataset_name_or_path
+    def _load_samples_from_source(
+        self, ds_source: str, split: str = "train", limit: int | None = None
+    ) -> list[str]:
+        """Ingest samples from local file or Hugging Face repository."""
+        target_limit = limit or self.config.num_samples
         samples: list[str] = []
 
-        # 1. Try local file
         local_path = Path(ds_source)
         if local_path.exists() and local_path.is_file():
             try:
@@ -190,20 +272,19 @@ class CalibrationDatasetManager:
                 logger.info(
                     f"Loaded {len(samples)} calibration samples from local file: {local_path}"
                 )
-                return samples[: self.config.num_samples]
+                return samples[:target_limit]
             except Exception as e:
                 logger.warning(f"Failed to read local calibration file {local_path}: {e}")
 
-        # 2. Try Hugging Face datasets
         try:
             from datasets import load_dataset  # type: ignore[import]
 
-            hf_ds = load_dataset(ds_source, split=self.config.split, streaming=True)
+            hf_ds = load_dataset(ds_source, split=split, streaming=True)
             for item in hf_ds:
                 code = item.get("content") or item.get("code") or item.get("text", "")
                 if code and len(code.strip()) > 50:
                     samples.append(code.strip())
-                if len(samples) >= self.config.num_samples * 2:
+                if len(samples) >= target_limit * 2:
                     break
             logger.info(
                 f"Loaded {len(samples)} calibration samples from Hugging Face dataset: {ds_source}"
@@ -212,13 +293,30 @@ class CalibrationDatasetManager:
         except Exception as err:
             logger.info(
                 f"HuggingFace dataset load for '{ds_source}' skipped ({err}). "
-                f"Using bundled canonical code calibration corpus."
+                f"Using bundled canonical corpus."
             )
 
-        # 3. Bundled Fallback
-        return _CANONICAL_CODE_CORPUS * max(
-            1, (self.config.num_samples // len(_CANONICAL_CODE_CORPUS) + 1)
+        return _CANONICAL_CODE_CORPUS * max(1, (target_limit // len(_CANONICAL_CODE_CORPUS) + 1))
+
+    def load_raw_samples(self) -> list[str]:
+        """Ingest raw code samples from Hugging Face or local files with fallback."""
+        return self._load_samples_from_source(
+            self.config.dataset_name_or_path, self.config.split, self.config.num_samples
         )
+
+    def load_domain_samples(self, spec: DomainMixSpec) -> list[str]:
+        """Load samples for a specific domain specification."""
+        if spec.samples:
+            return spec.samples
+
+        if spec.domain_name.lower() in {"text", "general", "doc", "docs"}:
+            if spec.dataset_name_or_path:
+                return self._load_samples_from_source(spec.dataset_name_or_path, spec.split)
+            return _CANONICAL_TEXT_CORPUS
+
+        if spec.dataset_name_or_path:
+            return self._load_samples_from_source(spec.dataset_name_or_path, spec.split)
+        return _CANONICAL_CODE_CORPUS
 
     def purge_contamination(self, samples: list[str]) -> list[str]:
         """Scan samples against target benchmark tasks and purge overlapping items."""
@@ -261,8 +359,77 @@ class CalibrationDatasetManager:
 
         return clean_samples if clean_samples else samples
 
+    def get_multi_domain_corpus(self) -> list[str]:
+        """Fetch, sanitize, and proportionally mix multi-domain calibration samples."""
+        if self.config.domain_mix:
+            corpora: dict[str, list[str]] = {}
+            weights: dict[str, float] = {}
+            for spec in self.config.domain_mix:
+                corpora[spec.domain_name] = self.load_domain_samples(spec)
+                weights[spec.domain_name] = spec.weight
+
+            mixed = MultiDomainCalibrationMixer.mix_corpora(
+                corpora=corpora,
+                weights=weights,
+                total_samples=self.config.num_samples,
+                seed=self.config.seed,
+            )
+            return self.purge_contamination(mixed)
+
+        if self.config.mix_code_ratio < 1.0:
+            corpora = {
+                "code": self.load_raw_samples(),
+                "text": _CANONICAL_TEXT_CORPUS,
+            }
+            weights = {
+                "code": self.config.mix_code_ratio,
+                "text": 1.0 - self.config.mix_code_ratio,
+            }
+            mixed = MultiDomainCalibrationMixer.mix_corpora(
+                corpora=corpora,
+                weights=weights,
+                total_samples=self.config.num_samples,
+                seed=self.config.seed,
+            )
+            return self.purge_contamination(mixed)
+
+        return self.get_calibration_corpus()
+
     def get_calibration_corpus(self) -> list[str]:
         """Fetch, sanitize, and prepare full calibration dataset."""
+        if self.config.domain_mix or self.config.mix_code_ratio < 1.0:
+            # Delegate to multi-domain mixer if specified
+            if self.config.domain_mix:
+                corpora: dict[str, list[str]] = {}
+                weights: dict[str, float] = {}
+                for spec in self.config.domain_mix:
+                    corpora[spec.domain_name] = self.load_domain_samples(spec)
+                    weights[spec.domain_name] = spec.weight
+
+                mixed = MultiDomainCalibrationMixer.mix_corpora(
+                    corpora=corpora,
+                    weights=weights,
+                    total_samples=self.config.num_samples,
+                    seed=self.config.seed,
+                )
+                return self.purge_contamination(mixed)
+
+            corpora = {
+                "code": self.load_raw_samples(),
+                "text": _CANONICAL_TEXT_CORPUS,
+            }
+            weights = {
+                "code": self.config.mix_code_ratio,
+                "text": 1.0 - self.config.mix_code_ratio,
+            }
+            mixed = MultiDomainCalibrationMixer.mix_corpora(
+                corpora=corpora,
+                weights=weights,
+                total_samples=self.config.num_samples,
+                seed=self.config.seed,
+            )
+            return self.purge_contamination(mixed)
+
         raw = self.load_raw_samples()
         clean = self.purge_contamination(raw)
         return clean[: self.config.num_samples]

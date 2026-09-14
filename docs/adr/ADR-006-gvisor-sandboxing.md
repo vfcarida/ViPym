@@ -1,4 +1,4 @@
-# ADR-002: Hardened Sandboxing and gVisor Container Isolation for Benchmark Execution
+# ADR-006: Hardened Sandboxing and gVisor Container Isolation for Benchmark Execution
 
 ## Status
 Accepted
@@ -20,3 +20,4 @@ Implement defense-in-depth isolation in `SandboxedCodeRunner`:
 ## Consequences
 - Guarantees host integrity during large-scale automated benchmark evaluations.
 - Prevents secret exfiltration.
+- Eliminates risk of host compromise when executing untrusted generated code.

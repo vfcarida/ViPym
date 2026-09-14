@@ -1,4 +1,4 @@
-# ADR-003: Resumable Experiment Lifecycle State Machine and Stage Checkpointing
+# ADR-007: Resumable Experiment Lifecycle State Machine and Stage Checkpointing
 
 ## Status
 Accepted
@@ -15,3 +15,4 @@ Upon reinvocation (`vipym run --config <path>`), completed stages (such as Basel
 ## Consequences
 - Zero redundant computation on re-runs.
 - Clear state visibility and auditability.
+- Robust execution resilience against node preemptions.

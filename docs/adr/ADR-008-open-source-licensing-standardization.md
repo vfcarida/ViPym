@@ -1,4 +1,4 @@
-# ADR-004: Open-Source Licensing Standardization (MIT License)
+# ADR-008: Open-Source Licensing Standardization (MIT License)
 
 ## Status
 Accepted / Enacted

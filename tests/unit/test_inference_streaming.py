@@ -102,3 +102,39 @@ async def test_hf_engine_streaming_uninitialized_raises():
     with pytest.raises(InferenceRuntimeError, match="HuggingFace engine not initialized"):
         async for _ in backend.generate_stream_async(req):
             pass
+
+
+def test_inference_backend_consolidation_and_reexports():
+    """Verify inference backend consolidation maintains identical class references."""
+    from vipym.inference.backends.hf_backend import (
+        HuggingFaceInferenceBackend as CoreHFBackend,
+    )
+    from vipym.inference.backends.vllm_backend import (
+        VLLMBackend,
+    )
+    from vipym.inference.backends.vllm_backend import (
+        VLLMInferenceBackend as CoreVLLMBackend,
+    )
+    from vipym.inference.hf_engine import (
+        HuggingFaceInferenceBackend as FacadeHFBackend,
+    )
+    from vipym.inference.registry import InferenceRegistry
+    from vipym.inference.vllm_engine import (
+        VLLMBackend as FacadeVLLMBackend,
+    )
+    from vipym.inference.vllm_engine import (
+        VLLMInferenceBackend as FacadeVLLMInferenceBackend,
+    )
+
+    assert CoreHFBackend is FacadeHFBackend
+    assert VLLMBackend is CoreVLLMBackend
+    assert VLLMBackend is FacadeVLLMBackend
+    assert CoreVLLMBackend is FacadeVLLMInferenceBackend
+
+    # Ensure registries resolve properly
+    assert isinstance(InferenceRegistry.get("hf"), CoreHFBackend)
+    assert isinstance(InferenceRegistry.get("vllm"), VLLMBackend)
+    assert isinstance(InferenceRegistry.get("vllm_engine"), VLLMBackend)
+    assert InferenceRegistry.get_class("hf") is CoreHFBackend
+    assert InferenceRegistry.get_class("vllm") is VLLMBackend
+    assert InferenceRegistry.get_class("vllm_engine") is VLLMBackend

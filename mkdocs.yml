@@ -32,8 +32,13 @@ nav:
       - ADR-003 SE Benchmarks: adr/ADR-003-se-benchmarks-over-generic-evals.md
       - ADR-004 Pydantic v2 Schema: adr/ADR-004-pydantic-v2-for-configuration.md
       - ADR-005 Plugin Registries: adr/ADR-005-plugin-architecture-for-extensibility.md
+      - ADR-006 Sandbox Isolation: adr/ADR-006-gvisor-sandboxing.md
+      - ADR-007 State Machine: adr/ADR-007-resumable-experiment-state-machine.md
+      - ADR-008 Open-Source Licensing: adr/ADR-008-open-source-licensing-standardization.md
   - Operations & Guides:
       - API Reference: api_reference.md
+      - Model Publishing: guides/publishing.md
+      - CI/CD Quality Gates: guides/ci_cd_integration.md
       - Troubleshooting: troubleshooting.md
       - Operational Runbook: runbook.md
       - Migration Guide: migration.md

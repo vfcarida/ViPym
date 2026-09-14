@@ -95,7 +95,9 @@ class VLLMBackend(BaseInferenceBackend):
 
         if self.llm == "mock_vllm_engine" or self.llm == "remote_vllm_client":
             # Realistic mock generation
-            gen_text = f"def solution():\n    return 'vllm_output_{hash(request.prompt) % 1000}'\n"
+            gen_text = (
+                f"def solution():\n    return 'mock_solution_for_{hash(request.prompt) % 1000}'\n"
+            )
             total_time = 25.0
             p_tokens = len(request.prompt.split())
             c_tokens = len(gen_text.split())
@@ -184,7 +186,12 @@ class VLLMBackend(BaseInferenceBackend):
         self.llm = None
 
 
+# Backward compatibility alias
+VLLMInferenceBackend = VLLMBackend
+
 InferenceRegistry.register("vllm", VLLMBackend)
 InferenceRegistry.register("vllm_backend", VLLMBackend)
+InferenceRegistry.register("vllm_engine", VLLMBackend)
+InferenceRegistry.register("vllm_legacy", VLLMBackend)
 InferenceRegistry.register("vllm_local", lambda: VLLMBackend(mode="local"))
 InferenceRegistry.register("vllm_remote", lambda: VLLMBackend(mode="remote"))

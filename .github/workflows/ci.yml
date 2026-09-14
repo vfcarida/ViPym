@@ -19,15 +19,21 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install Linting Tools
+      - name: Install Linting, Docs & Packaging Tools
         run: |
-          pip install ruff mypy types-pyyaml
+          pip install ruff mypy types-pyyaml mkdocs mkdocs-material build
 
       - name: Run Ruff Linter
         run: ruff check .
 
       - name: Run Ruff Format Check
         run: ruff format --check .
+
+      - name: Run MkDocs Strict Build
+        run: mkdocs build --strict
+
+      - name: Verify Package Build (sdist & wheel)
+        run: python -m build --sdist --wheel
 
   test-matrix:
     name: Test Suite (Python ${{ matrix.python-version }} on ${{ matrix.os }})
@@ -55,11 +61,13 @@ jobs:
       - name: Run Unit & Contract Tests
         env:
           VIPYM_ALLOW_UNSAFE: "1"
+          VIPYM_OFFLINE: "1"
         run: |
           pytest tests/unit/ tests/contract/ -v
 
       - name: Run CLI Workflow & Smoke Tests
         env:
           VIPYM_ALLOW_UNSAFE: "1"
+          VIPYM_OFFLINE: "1"
         run: |
           pytest tests/e2e/ -v

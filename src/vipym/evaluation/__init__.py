@@ -7,7 +7,11 @@ from vipym.evaluation.composite import (
     SECompositeReport,
     compute_se_composite_score,
 )
-from vipym.evaluation.contamination import ContaminationAuditor, ContaminationReport
+from vipym.evaluation.contamination import (
+    ContaminationAuditor,
+    ContaminationCertificate,
+    ContaminationReport,
+)
 from vipym.evaluation.registry import EvaluationRegistry
 from vipym.evaluation.runner import BenchmarkRunner
 from vipym.evaluation.scoring import (
@@ -18,6 +22,7 @@ from vipym.evaluation.scoring import (
 __all__ = [
     "BenchmarkRunner",
     "ContaminationAuditor",
+    "ContaminationCertificate",
     "ContaminationReport",
     "EvaluationRegistry",
     "SECompositeCalculator",

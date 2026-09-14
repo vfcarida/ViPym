@@ -15,11 +15,14 @@ ViPym establishes **Decoupled Plugin Registries** across four core axes:
 
 New methods and suites register via simple decorators or class registration (`@CompressionRegistry.register("my_method")` or `CompressionRegistry.register("my_method", MyMethodClass)`).
 
+Configuration schemas (`CompressionStageConfig`) dynamically validate methods against built-in algorithms and all active registrations in `CompressionRegistry`, allowing custom plugins to be invoked seamlessly in YAML pipelines without schema re-compilation.
+
 ## Consequences
 ### Positive
 - Third-party researchers can add new compression algorithms in a standalone file without modifying core execution or reporting engines.
 - Clean separation of concerns between compression math, inference serving, and benchmark scoring.
 - Comprehensive dynamic inspection via `vipym methods`, `vipym suites`, and `vipym models`.
+- Full dynamic schema validation: custom plugin names are directly validated and parsed by Pydantic models.
 
 ### Negative
 - Requires maintaining abstract base interfaces with rigorous typing and capability declarations.

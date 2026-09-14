@@ -142,33 +142,42 @@ class MyCustomEvaluationSuite(EvaluationSuite):
 
 ---
 
-## 4. Code Style & Linting
+## 4. Code Style & Quality Gates
 
-We enforce strict formatting and linting using `ruff`:
+We enforce strict formatting, linting, doc builds, and package verification:
 
 ```bash
 # Check code style and imports
 ruff check .
 
+# Check formatting
+ruff format --check .
+
 # Auto-fix fixable linter warnings
 ruff check --fix .
 
-# Format code
+# Auto-format code
 ruff format .
+
+# Verify documentation builds without broken links
+mkdocs build --strict
+
+# Verify distribution artifacts build cleanly
+python -m build --sdist --wheel
 ```
 
 ---
 
 ## 5. Testing Requirements
 
-All contributions must include unit tests and maintain passing test suites:
+All contributions must include unit tests and maintain passing test suites in offline mode:
 
 ```bash
-# Run unit tests
-pytest tests/unit/ -v
+# Run unit & contract tests with strict offline mode enabled
+VIPYM_OFFLINE=1 VIPYM_ALLOW_UNSAFE=1 pytest tests/unit/ tests/contract/ -v
 
-# Run integration tests
-pytest tests/integration/ -v
+# Run integration & e2e smoke tests
+VIPYM_OFFLINE=1 VIPYM_ALLOW_UNSAFE=1 pytest tests/e2e/ -v
 ```
 
 ---
@@ -177,6 +186,6 @@ pytest tests/integration/ -v
 
 1. Fork the repository and create a feature branch (`git checkout -b feature/my-new-method`).
 2. Implement your changes, documentation, and unit tests.
-3. Verify that all tests pass (`pytest tests/ -v`) and ruff is clean (`ruff check .`).
+3. Verify that all tests pass (`pytest tests/ -v`), ruff is clean, docs build cleanly (`mkdocs build --strict`), and package builds (`python -m build`).
 4. Commit your changes with clear commit messages.
 5. Push to your branch and open a Pull Request against `main`.

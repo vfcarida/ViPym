@@ -287,3 +287,6 @@ CompressionRegistry.register("kv_cache_fp8", KVCacheQuantizationMethod)
 CompressionRegistry.register("kv_cache_fp8_e4m3", lambda: KVCacheQuantizationMethod("fp8_e4m3"))
 CompressionRegistry.register("kv_cache_fp8_e5m2", lambda: KVCacheQuantizationMethod("fp8_e5m2"))
 CompressionRegistry.register("kv_cache_int4", lambda: KVCacheQuantizationMethod("int4"))
+
+# Convenience alias
+FP8KVCacheQuantizer = KVCacheQuantizationMethod

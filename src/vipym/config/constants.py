@@ -62,6 +62,12 @@ class CompressionMethodType(StrEnum):
     DISTILL_LOGIT = "distill_logit"
     KV_CACHE_FP8 = "kv_cache_fp8"
     KV_CACHE_INT4 = "kv_cache_int4"
+    EXPERT_PRUNE = "expert_prune"
+    EXPERT_MERGE = "expert_merge"
+    EXPERT_PROFILER = "expert_profiler"
+    LLM_COMPRESSOR = "llm_compressor"
+    SPARSEGPT = "sparsegpt"
+    WANDA = "wanda"
 
 
 class ServingBackendType(StrEnum):

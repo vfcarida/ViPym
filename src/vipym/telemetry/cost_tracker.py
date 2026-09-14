@@ -11,33 +11,12 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
+from vipym.cost.providers import (
+    COMMERCIAL_API_PRICING,
+    DEFAULT_HARDWARE_RATES,
+)
 
 logger = get_logger(__name__)
-
-# Standard hourly hardware rental rates ($/hour)
-DEFAULT_HARDWARE_RATES: dict[str, float] = {
-    "A100-80GB": 2.50,
-    "H100-80GB": 3.50,
-    "A10G": 1.00,
-    "L40S": 1.50,
-    "default": 2.50,
-}
-
-# Commercial LLM API pricing ($ / 1 Million tokens)
-COMMERCIAL_API_PRICING: dict[str, dict[str, float]] = {
-    "gpt-4o": {
-        "prompt_per_1m": 2.50,
-        "completion_per_1m": 10.00,
-    },
-    "claude-3.5-sonnet": {
-        "prompt_per_1m": 3.00,
-        "completion_per_1m": 15.00,
-    },
-    "deepseek-v3": {
-        "prompt_per_1m": 0.14,
-        "completion_per_1m": 0.28,
-    },
-}
 
 
 @dataclass

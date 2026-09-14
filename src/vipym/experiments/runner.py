@@ -3,6 +3,7 @@
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import pydantic
 
@@ -59,6 +60,7 @@ class ResumableExperimentRunner:
         config: ViPymExperimentConfig,
         artifacts_dir: Path | str = "./artifacts",
         checkpoint_enabled: bool = True,
+        telemetry_emitter: Any = None,
     ) -> None:
         self.config = config
         self.exp_dir = Path(artifacts_dir) / config.experiment_id
@@ -78,6 +80,10 @@ class ResumableExperimentRunner:
 
         self.manifest = ReproducibilityManifest.create(config)
         self.cost_calculator = CloudCostCalculator(config.cost_assumptions)
+
+        from vipym.telemetry.emitters import get_telemetry_emitter
+
+        self.telemetry_emitter = telemetry_emitter or get_telemetry_emitter()
 
     def run(self, resume: bool = True) -> ExperimentRunSummary:
         if not self.checkpoint_enabled:
@@ -99,6 +105,11 @@ class ResumableExperimentRunner:
         )
         logger.info(
             f"Starting ViPym Experiment: [bold cyan]{self.config.experiment_id}[/bold cyan] (resume={resume}, checkpoint={self.checkpoint_enabled})"
+        )
+
+        self.telemetry_emitter.start_run(
+            run_name=self.config.experiment_id,
+            config=self.config.model_dump(),
         )
 
         tracker = PipelineProgressTracker(
@@ -460,6 +471,16 @@ class ResumableExperimentRunner:
                 f"[OK] Experiment [{self.config.experiment_id}] completed successfully in {total_duration:.2f}s"
             )
 
+            self.telemetry_emitter.log_metrics(
+                {
+                    "baseline_pass_at_1": baseline_point.quality_score,
+                    "total_duration_sec": total_duration,
+                    "total_cost_usd": cost_breakdown.total_cost_usd,
+                    "compressed_count": float(len(compressed_points)),
+                }
+            )
+            self.telemetry_emitter.end_run(status="FINISHED")
+
             return ExperimentRunSummary(
                 experiment_id=self.config.experiment_id,
                 manifest_id=self.manifest.manifest_id,
@@ -482,4 +503,5 @@ class ResumableExperimentRunner:
                 error=str(e),
             )
             logger.error(f"Experiment [{self.config.experiment_id}] failed: {e}")
+            self.telemetry_emitter.end_run(status="FAILED")
             raise

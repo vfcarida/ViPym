@@ -1,0 +1,79 @@
+# =============================================================================
+# ViPym Turnkey Hardened Benchmark Evaluation Sandbox Container
+#
+# Designed for safe, isolated execution of untrusted LLM-generated code across
+# SWE-bench, HumanEval, MBPP, EvalPlus, and BigCodeBench.
+#
+# Build:
+#   docker build -t vipym-evaluator:latest -f docker/Dockerfile.evaluator .
+#
+# Run (standard hardened Docker):
+#   docker run --rm --network=none --pids-limit=100 --memory=2g --cpus=2 \
+#     -v $(pwd)/eval_scratch:/workspace/eval_scratch \
+#     vipym-evaluator:latest --help
+#
+# Run (ultra-hardened gVisor user-space kernel):
+#   docker run --rm --runtime=runsc --network=none --memory=2g \
+#     vipym-evaluator:latest --help
+# =============================================================================
+
+FROM python:3.11-slim-bookworm
+
+LABEL maintainer="ViPym Contributors <maintainers@vipym.org>"
+LABEL description="Hardened sandbox runner for untrusted LLM benchmark evaluation"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    VIPYM_SANDBOX_ISOLATION=1 \
+    VIPYM_OFFLINE=1
+
+# Install minimal test runner dependencies and build utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pre-install core testing and evaluation dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+    pytest \
+    pytest-timeout \
+    pytest-asyncio \
+    coverage \
+    pydantic \
+    pyyaml \
+    rich
+
+# Security hardening: Strip remote exfiltration binaries
+RUN rm -rf \
+    /usr/bin/curl \
+    /usr/bin/wget \
+    /usr/bin/nc \
+    /usr/bin/netcat \
+    /usr/bin/telnet \
+    /usr/bin/ftp
+
+# Create dedicated non-root runner user with limited privileges
+RUN groupadd -g 10001 vipym && \
+    useradd -u 10001 -g vipym -m -s /bin/bash -d /home/vipym vipym-runner
+
+# Establish working directories and scratch volumes with proper ownership
+RUN mkdir -p /workspace/vipym /workspace/eval_scratch && \
+    chown -R vipym-runner:vipym /workspace /home/vipym
+
+WORKDIR /workspace/vipym
+
+# Copy ViPym source and install evaluation extras
+COPY --chown=vipym-runner:vipym pyproject.toml README.md ./
+COPY --chown=vipym-runner:vipym src/ ./src/
+
+RUN pip install --no-cache-dir -e ".[dev]"
+
+# Switch definitively to unprivileged sandbox user
+USER vipym-runner
+WORKDIR /workspace/eval_scratch
+
+ENTRYPOINT ["vipym"]
+CMD ["evaluate", "--help"]

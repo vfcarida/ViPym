@@ -81,3 +81,4 @@ reports/
 *.log
 .tmp*
 .deepeval/
+site/

@@ -12,110 +12,13 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from vipym.core.logger import get_logger
+from vipym.cost.providers import (
+    COMMERCIAL_APIS,
+    STANDARD_INSTANCES,
+    InstancePricing,
+)
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class InstancePricing:
-    """Cloud GPU instance specification and pricing tiers."""
-
-    instance_type: str
-    gpu_type: str
-    gpu_count: int
-    hourly_rate_ondemand: float
-    hourly_rate_spot: float
-    hourly_rate_reserved_1yr: float
-    hourly_rate_reserved_3yr: float
-
-    def get_rate(self, pricing_tier: str = "ondemand") -> float:
-        tier = pricing_tier.lower()
-        if "spot" in tier:
-            return self.hourly_rate_spot
-        if "3yr" in tier or "3_year" in tier:
-            return self.hourly_rate_reserved_3yr
-        if "1yr" in tier or "1_year" in tier or "reserved" in tier:
-            return self.hourly_rate_reserved_1yr
-        return self.hourly_rate_ondemand
-
-
-# Standard AWS cloud instance catalog
-STANDARD_INSTANCES: dict[str, InstancePricing] = {
-    "p5.48xlarge": InstancePricing(
-        instance_type="p5.48xlarge",
-        gpu_type="H100-80GB",
-        gpu_count=8,
-        hourly_rate_ondemand=32.77,
-        hourly_rate_spot=11.47,
-        hourly_rate_reserved_1yr=21.30,
-        hourly_rate_reserved_3yr=14.50,
-    ),
-    "p4de.24xlarge": InstancePricing(
-        instance_type="p4de.24xlarge",
-        gpu_type="A100-80GB",
-        gpu_count=8,
-        hourly_rate_ondemand=40.96,
-        hourly_rate_spot=14.33,
-        hourly_rate_reserved_1yr=26.62,
-        hourly_rate_reserved_3yr=18.10,
-    ),
-    "g6.12xlarge": InstancePricing(
-        instance_type="g6.12xlarge",
-        gpu_type="L40S-48GB",
-        gpu_count=4,
-        hourly_rate_ondemand=4.944,
-        hourly_rate_spot=1.73,
-        hourly_rate_reserved_1yr=3.21,
-        hourly_rate_reserved_3yr=2.18,
-    ),
-    "g5.12xlarge": InstancePricing(
-        instance_type="g5.12xlarge",
-        gpu_type="A10G-24GB",
-        gpu_count=4,
-        hourly_rate_ondemand=5.672,
-        hourly_rate_spot=1.985,
-        hourly_rate_reserved_1yr=3.687,
-        hourly_rate_reserved_3yr=2.507,
-    ),
-    "g5.xlarge": InstancePricing(
-        instance_type="g5.xlarge",
-        gpu_type="A10G-24GB",
-        gpu_count=1,
-        hourly_rate_ondemand=1.006,
-        hourly_rate_spot=0.352,
-        hourly_rate_reserved_1yr=0.654,
-        hourly_rate_reserved_3yr=0.445,
-    ),
-    "default": InstancePricing(
-        instance_type="default",
-        gpu_type="H100-80GB",
-        gpu_count=1,
-        hourly_rate_ondemand=2.50,
-        hourly_rate_spot=0.875,
-        hourly_rate_reserved_1yr=1.625,
-        hourly_rate_reserved_3yr=1.105,
-    ),
-}
-
-# Commercial LLM API catalog ($ / 1M tokens)
-COMMERCIAL_APIS: dict[str, dict[str, float]] = {
-    "claude_sonnet": {
-        "cost_1m_input": 3.00,
-        "cost_1m_output": 15.00,
-    },
-    "gpt_4o": {
-        "cost_1m_input": 2.50,
-        "cost_1m_output": 10.00,
-    },
-    "deepseek_v3": {
-        "cost_1m_input": 0.14,
-        "cost_1m_output": 0.28,
-    },
-    "deepseek_r1": {
-        "cost_1m_input": 0.55,
-        "cost_1m_output": 2.19,
-    },
-}
 
 
 @dataclass

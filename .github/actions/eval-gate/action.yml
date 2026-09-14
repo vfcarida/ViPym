@@ -1,0 +1,101 @@
+name: "ViPym Model Evaluation Quality Gate"
+description: "Automated regression testing and Pass@1 / compile-rate quality gate for LLMs and compressed checkpoints"
+author: "ViPym Open Source"
+
+inputs:
+  model-path:
+    description: "Hugging Face model ID or path to local model checkpoint directory"
+    required: true
+  suite:
+    description: "Benchmark evaluation suite (e.g., humaneval, mbpp, swebench_lite)"
+    required: false
+    default: "humaneval"
+  limit:
+    description: "Cap the maximum number of benchmark tasks to evaluate (useful for fast PR gating)"
+    required: false
+    default: ""
+  backend:
+    description: "Inference serving engine (hf or vllm)"
+    required: false
+    default: "hf"
+  min-pass1:
+    description: "Minimum acceptable Pass@1 accuracy threshold (float between 0.0 and 1.0)"
+    required: false
+    default: "0.50"
+  min-compile-rate:
+    description: "Minimum acceptable code compilation rate threshold (float between 0.0 and 1.0)"
+    required: false
+    default: "0.80"
+  output-json:
+    description: "Destination file path for structured JSON evaluation metrics report"
+    required: false
+    default: "vipym-eval-gate-results.json"
+  python-version:
+    description: "Python version for the evaluation runner environment"
+    required: false
+    default: "3.12"
+
+outputs:
+  pass-at-1:
+    description: "Achieved Pass@1 score on the benchmark suite"
+    value: ${{ steps.parse-metrics.outputs.pass_at_1 }}
+  compile-rate:
+    description: "Achieved code compilation rate"
+    value: ${{ steps.parse-metrics.outputs.compile_rate }}
+  gate-status:
+    description: "Gate evaluation result (PASSED or FAILED)"
+    value: ${{ steps.parse-metrics.outputs.gate_status }}
+  metrics-json:
+    description: "Path to the written JSON metrics report"
+    value: ${{ inputs.output-json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: "pip"
+
+    - name: Install ViPym and Evaluation Dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[eval,torch]
+
+    - name: Run ViPym Evaluation Gate
+      id: run-gate
+      shell: bash
+      run: |
+        CMD="vipym evaluate --model '${{ inputs.model-path }}' --suite '${{ inputs.suite }}' --backend '${{ inputs.backend }}' --gate --min-pass1 '${{ inputs.min-pass1 }}' --min-compile-rate '${{ inputs.min-compile-rate }}' --output-json '${{ inputs.output-json }}'"
+        if [ -n "${{ inputs.limit }}" ]; then
+          CMD="$CMD --limit ${{ inputs.limit }}"
+        fi
+        echo "Executing: $CMD"
+        eval "$CMD"
+
+    - name: Parse Metrics & Append Step Summary
+      id: parse-metrics
+      if: always()
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.output-json }}" ]; then
+          PASS_AT_1=$(python -c "import json; d=json.load(open('${{ inputs.output-json }}')); print(f\"{d.get('pass_at_1', 0.0):.4f}\")")
+          COMPILE_RATE=$(python -c "import json; d=json.load(open('${{ inputs.output-json }}')); print(f\"{d.get('compile_rate', 0.0):.4f}\")")
+          PASSED=$(python -c "import json; d=json.load(open('${{ inputs.output-json }}')); print('PASSED' if d.get('gate_passed', False) else 'FAILED')")
+          echo "pass_at_1=$PASS_AT_1" >> $GITHUB_OUTPUT
+          echo "compile_rate=$COMPILE_RATE" >> $GITHUB_OUTPUT
+          echo "gate_status=$PASSED" >> $GITHUB_OUTPUT
+
+          echo "### 🛡️ ViPym Model Quality Gate Report" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Measured | Required Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :---: | :---: | :---: |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pass@1** | $PASS_AT_1 | ${{ inputs.min-pass1 }} | $( [ \"$PASSED\" == \"PASSED\" ] && echo '✅ PASS' || echo '❌ FAIL' ) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Compile Rate** | $COMPILE_RATE | ${{ inputs.min-compile-rate }} | $( [ \"$PASSED\" == \"PASSED\" ] && echo '✅ PASS' || echo '❌ FAIL' ) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Suite**: \`${{ inputs.suite }}\` | **Model**: \`${{ inputs.model-path }}\` | **Overall Result**: **$PASSED**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "gate_status=FAILED" >> $GITHUB_OUTPUT
+          echo "### ❌ ViPym Model Quality Gate Failed: No metrics report generated." >> $GITHUB_STEP_SUMMARY
+        fi

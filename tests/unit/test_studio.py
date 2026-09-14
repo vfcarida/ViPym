@@ -50,11 +50,13 @@ def studio_server(tmp_path_factory: pytest.TempPathFactory):
 
 def test_studio_status(studio_server: str) -> None:
     """Test GET /api/status endpoint."""
+    from vipym import __version__
+
     with urllib.request.urlopen(f"{studio_server}/api/status") as resp:
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert data["status"] == "online"
-        assert data["vipym_version"] == "0.1.0"
+        assert data["vipym_version"] == __version__
 
 
 def test_studio_experiments_api(studio_server: str) -> None:

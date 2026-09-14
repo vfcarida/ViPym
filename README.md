@@ -8,7 +8,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Serving: vLLM](https://img.shields.io/badge/Serving-vLLM%20%7C%20SGLang-00D4B2?style=for-the-badge)](https://github.com/vllm-project/vllm)
 [![Code style: ruff](https://img.shields.io/badge/Code%20Style-Ruff-000000?style=for-the-badge&logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
-[![Tests Passing](https://img.shields.io/badge/Tests-396%2F396%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
+[![Tests Passing](https://img.shields.io/badge/Tests-422%2F422%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/vfcarida/ViPym)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/vfcarida/ViPym/actions)
 
 <p align="center">
@@ -49,6 +49,28 @@ vipym studio --artifacts-dir results/
 
 Open `http://127.0.0.1:8080` in your web browser to explore interactive 3D/2D Pareto frontiers, stage telemetry, and automated deployment recommendations.
 
+### Python API Quickstart
+
+Prefer Python scripts over CLI commands? Run pipelines programmatically:
+
+```python
+from vipym.config.schema import EvaluationConfig, ModelConfig, ServingConfig, ViPymExperimentConfig
+from vipym.experiments.runner import ResumableExperimentRunner
+
+# Define compression pipeline and sandboxed benchmark evaluation
+config = ViPymExperimentConfig(
+    experiment_id="quickstart-awq",
+    model=ModelConfig(id="HuggingFaceTB/SmolLM-135M"),
+    compression_pipeline=[{"stage_id": "awq", "method": "awq", "scheme": "W4A16"}],
+    serving=ServingConfig(backend="vllm"),
+    evaluation=EvaluationConfig(suites=["humaneval"], task_limit=5),
+)
+summary = ResumableExperimentRunner(config=config, artifacts_dir="./results").run()
+print(
+    f"Pass@1: {summary.compressed_points[0].quality_score * 100:.1f}% | Pareto Optimal: {summary.compressed_points[0].is_pareto_optimal}"
+)
+```
+
 ---
 
 ## 📊 Comparison with Existing Tools
@@ -83,6 +105,19 @@ Execute any recipe with:
 ```bash
 vipym run recipes/cost-optimized-se.yaml --output results/
 ```
+
+### Verified Models Matrix
+
+ViPym continuously verifies compression accuracy and benchmark stability across foundational and code intelligence architectures:
+
+| Model Family | Representative Checkpoints | Architecture | Validated Compression Pipelines | Tested Benchmark Suites |
+| :--- | :--- | :--- | :--- | :--- |
+| **Qwen2.5-Coder** | `7B`, `14B`, `32B` | Dense Causal | AWQ W4A16, GPTQ 4-bit, 2:4 Sparsity, FP8 KV | HumanEval+, MBPP, SWE-bench |
+| **DeepSeek-Coder-V2** | `16B (2.4B active)`, `236B` | MoE MLA | Routing Profiler, Expert Pruning, AWQ W4A16 | BigCodeBench, HumanEval, Aider |
+| **StarCoder2** | `3B`, `7B`, `15B` | Dense Causal | AutoRound, SmoothQuant W8A8, Wanda Sparsity | HumanEval, MBPP, EvalPlus |
+| **CodeLlama / LLaMA-3.1** | `8B`, `70B` | Dense GQA | QuaRot, SpinQuant, FP8 Static, FP8 KV | HumanEval, LiveCodeBench, SWE-bench |
+| **Kimi K3** | `2.8T MoE` | Extreme MoE | Router Distillation, Expert Merging, FP8 KV | SWE-bench, BigCodeBench, Aider |
+| **SmolLM** | `135M`, `360M`, `1.7B` | Dense Lightweight | CPU Smoke Test, AWQ, GPTQ, Logit Distillation | HumanEval, MBPP (Fast CI/CD) |
 
 ---
 
@@ -195,6 +230,9 @@ VIPYM_API_TOKEN="secret-token" vipym studio --port 8080 --artifacts-dir results/
   - [ADR-003: SE Benchmarks over Generic Evaluations](docs/adr/ADR-003-se-benchmarks-over-generic-evals.md)
   - [ADR-004: Pydantic v2 for Unified Configuration](docs/adr/ADR-004-pydantic-v2-for-configuration.md)
   - [ADR-005: Decoupled Plugin Registries](docs/adr/ADR-005-plugin-architecture-for-extensibility.md)
+  - [ADR-006: Hardened Sandboxing and gVisor Container Isolation](docs/adr/ADR-006-gvisor-sandboxing.md)
+  - [ADR-007: Resumable Experiment Lifecycle State Machine](docs/adr/ADR-007-resumable-experiment-state-machine.md)
+  - [ADR-008: Open-Source Licensing Standardization](docs/adr/ADR-008-open-source-licensing-standardization.md)
 
 ---
 

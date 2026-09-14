@@ -118,3 +118,65 @@ func helper() {
         assert len(chunks) >= 1
         # Should contain delimiter eos_token_id 999 between packed functions
         assert 999 in chunks[0]
+
+    def test_multi_domain_calibration_mixer_proportions(self):
+        """Verify MultiDomainCalibrationMixer achieves requested proportions."""
+        from vipym.data.calibration import MultiDomainCalibrationMixer
+
+        code_samples = ["def f(): pass", "def g(): pass", "def h(): pass"]
+        text_samples = ["Documentation text 1.", "Documentation text 2."]
+
+        corpora = {"code": code_samples, "text": text_samples}
+        weights = {"code": 0.70, "text": 0.30}
+
+        mixed = MultiDomainCalibrationMixer.mix_corpora(
+            corpora=corpora, weights=weights, total_samples=100, seed=123
+        )
+
+        assert len(mixed) == 100
+        code_count = sum(1 for s in mixed if "def " in s)
+        text_count = sum(1 for s in mixed if "Documentation" in s)
+
+        # Proportions should be approximately 70% and 30% (+/- 5%)
+        assert 65 <= code_count <= 75
+        assert 25 <= text_count <= 35
+
+    def test_multi_domain_calibration_mixer_deterministic_seed(self):
+        """Verify identical seed yields identical sequence of mixed samples."""
+        from vipym.data.calibration import MultiDomainCalibrationMixer
+
+        corpora = {
+            "code": ["def a(): pass", "def b(): pass"],
+            "math": ["formula 1", "formula 2"],
+        }
+        mix1 = MultiDomainCalibrationMixer.mix_corpora(corpora, total_samples=20, seed=42)
+        mix2 = MultiDomainCalibrationMixer.mix_corpora(corpora, total_samples=20, seed=42)
+        assert mix1 == mix2
+
+    def test_multi_domain_config_and_manager_integration(self):
+        """Verify CalibrationDatasetManager produces mixed corpus via DomainMixSpec."""
+        from vipym.data.calibration import DomainMixSpec
+
+        spec_code = DomainMixSpec(
+            domain_name="code",
+            weight=0.8,
+            samples=["def solve_equation(): return 0", "def optimize(): return 1"],
+        )
+        spec_text = DomainMixSpec(
+            domain_name="text",
+            weight=0.2,
+            samples=["Software architecture explanation.", "System performance guide."],
+        )
+
+        cfg = CalibrationConfig(
+            domain_mix=[spec_code, spec_text],
+            num_samples=10,
+            seed=42,
+            purge_contaminated=False,
+        )
+        mgr = CalibrationDatasetManager(cfg)
+        corpus = mgr.get_multi_domain_corpus()
+
+        assert len(corpus) == 10
+        assert any("def " in s for s in corpus)
+        assert any("explanation" in s or "guide" in s for s in corpus)

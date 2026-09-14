@@ -79,8 +79,11 @@ eval = [
     "mutmut>=2.4.0",
     "coverage>=7.4.0",
 ]
+hub = [
+    "huggingface_hub>=0.23.0",
+]
 all = [
-    "vipym[torch,compression,serving,studio,dev,eval]",
+    "vipym[torch,compression,serving,studio,dev,eval,hub]",
 ]
 
 [project.scripts]
